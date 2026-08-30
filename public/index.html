@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>پنل مدیریت OpenVPN</title>
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">پنل مدیریت OpenVPN</div>
+    <div class="topbar-right">
+      <span id="server-badge" class="badge">در حال بارگذاری…</span>
+      <span id="whoami" class="muted"></span>
+      <button id="logout-btn" class="btn-ghost">خروج</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="cards" id="stat-cards">
+      <div class="card"><span class="card-label">کل کاربران</span><span class="card-value" id="stat-total">–</span></div>
+      <div class="card"><span class="card-label">فعال</span><span class="card-value" id="stat-active">–</span></div>
+      <div class="card"><span class="card-label">لغو شده</span><span class="card-value" id="stat-revoked">–</span></div>
+      <div class="card"><span class="card-label">آنلاین</span><span class="card-value" id="stat-online">–</span></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>کاربران</h2>
+        <div class="panel-actions">
+          <button id="sync-btn" class="btn-ghost">همگام‌سازی PKI</button>
+          <button id="new-client-btn" class="btn-primary">+ ایجاد کاربر</button>
+        </div>
+      </div>
+
+      <div id="list-error" class="error" role="alert" hidden></div>
+
+      <div class="table-wrap">
+        <table id="clients-table">
+          <thead>
+            <tr>
+              <th>نام</th>
+              <th>وضعیت</th>
+              <th>ایجاد</th>
+              <th>انقضا</th>
+              <th>آخرین اتصال</th>
+              <th>عملیات</th>
+            </tr>
+          </thead>
+          <tbody id="clients-body">
+            <tr><td colspan="6" class="muted center">در حال بارگذاری…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>گزارش رویدادها</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>زمان</th><th>مدیر</th><th>عملیات</th><th>کاربر</th><th>IP</th></tr>
+          </thead>
+          <tbody id="audit-body">
+            <tr><td colspan="5" class="muted center">–</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Create client modal -->
+  <div class="modal-backdrop" id="create-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="create-title">
+      <h3 id="create-title">ایجاد کاربر جدید</h3>
+      <form id="create-form" autocomplete="off">
+        <label for="client-name">نام کاربر</label>
+        <input id="client-name" name="name" type="text" required
+               pattern="[a-zA-Z0-9_-]+" maxlength="64"
+               placeholder="letters, digits, _ or -" spellcheck="false" autocapitalize="none" />
+        <label for="client-notes">یادداشت (اختیاری)</label>
+        <input id="client-notes" name="notes" type="text" maxlength="500" />
+        <div id="create-error" class="error" hidden></div>
+        <div id="create-success" class="success" hidden>
+          <p>کاربر با موفقیت ایجاد شد.</p>
+          <a id="create-download" class="btn-primary" href="#">دانلود فایل OpenVPN</a>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" data-close>بستن</button>
+          <button type="submit" class="btn-primary" id="create-submit">ایجاد کاربر</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Details modal -->
+  <div class="modal-backdrop" id="details-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="details-title">
+      <h3 id="details-title">جزئیات کاربر</h3>
+      <dl class="details" id="details-body"></dl>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" data-close>بستن</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

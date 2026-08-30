@@ -1,0 +1,53 @@
+[Unit]
+Description=OpenVPN Admin Panel (Node.js)
+Documentation=file:/opt/openvpn-admin/README.md
+After=network-online.target
+Wants=network-online.target
+# Live status needs the management interface, but the panel still starts
+# (degraded) without it.
+After=openvpn-server@server.service
+
+[Service]
+Type=simple
+User=openvpn-admin
+Group=openvpn-admin
+WorkingDirectory=/opt/openvpn-admin
+EnvironmentFile=/etc/openvpn-admin.env
+ExecStart=/usr/bin/node /opt/openvpn-admin/src/server.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+
+# --- hardening ---
+NoNewPrivileges=false
+# NOTE: NoNewPrivileges must stay false because the panel escalates through
+# a single locked-down sudoers rule (see /etc/sudoers.d/openvpn-admin).
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RemoveIPC=true
+# MemoryDenyWriteExecute is intentionally NOT set: it can break the V8 JIT.
+
+# Writable paths. The sandbox (ProtectSystem=strict) propagates to the
+# sudo-invoked helper, so the PKI directory must be listed here for
+# `easyrsa build-client-full` / `revoke` to work.
+ReadWritePaths=/var/lib/openvpn-admin /etc/openvpn/easy-rsa
+ReadOnlyPaths=/etc/openvpn-admin.env /etc/openvpn-admin /etc/openvpn/server
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

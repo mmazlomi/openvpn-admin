@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+#
+# ovpn-helper — the ONLY privileged entry point for the OpenVPN admin panel.
+#
+# The panel runs as the unprivileged `openvpn-admin` user and invokes this
+# script through a locked-down sudoers rule:
+#
+#   openvpn-admin ALL=(root) NOPASSWD: /opt/openvpn-admin/bin/ovpn-helper
+#
+# Every sub-command re-validates its arguments here, independently of the
+# Node layer. This keeps the EasyRSA PKI 100% root-owned: no world- or
+# group-readable private keys, no chmod of /etc/openvpn.
+#
+# Sub-commands:
+#   build   <name>     build-client-full <name> nopass
+#   revoke  <name>     revoke <name> ; gen-crl
+#   gen-crl            regenerate the CRL
+#   read-ca            print pki/ca.crt (PEM)
+#   read-ta            print the tls-crypt/tls-auth key
+#   read-cert <name>   print pki/issued/<name>.crt (PEM)
+#   read-key  <name>   print pki/private/<name>.key (PEM)
+#   read-index        print pki/index.txt
+#   pki-status <name>  print "req=0/1 cert=0/1 key=0/1"
+#   crl-status        print "mtime=<epoch> size=<bytes>" for pki/crl.pem
+#
+set -euo pipefail
+umask 077
+
+CONF=/etc/openvpn-admin/helper.conf
+EASYRSA_DIR=/etc/openvpn/easy-rsa
+CERT_DAYS=825
+# shellcheck disable=SC1090
+[ -r "$CONF" ] && . "$CONF"
+
+PKI_DIR="${PKI_DIR:-$EASYRSA_DIR/pki}"
+EASYRSA_BIN="${EASYRSA_BIN:-$EASYRSA_DIR/easyrsa}"
+CA_PASS_FILE="${CA_PASS_FILE:-$EASYRSA_DIR/ca.pass}"
+
+die() { echo "helper-error: $*" >&2; exit 1; }
+
+valid_name() {
+  [[ "$1" =~ ^[a-zA-Z0-9_-]{1,64}$ ]] || die "invalid client name"
+  case "$1" in
+    ca|server|ta|dh|crl|.|..) die "reserved name" ;;
+  esac
+}
+
+easyrsa_args=(--batch "--pki=$PKI_DIR")
+if [ -r "$CA_PASS_FILE" ]; then
+  easyrsa_args+=("--passin=file:$CA_PASS_FILE")
+fi
+
+run_easyrsa() {
+  cd "$EASYRSA_DIR"
+  "$EASYRSA_BIN" "${easyrsa_args[@]}" "$@"
+}
+
+cmd="${1:-}"; shift || true
+
+case "$cmd" in
+  build)
+    name="${1:-}"; valid_name "$name"
+    [ -e "$PKI_DIR/issued/$name.crt" ] && die "certificate already exists"
+    run_easyrsa "--days=$CERT_DAYS" build-client-full "$name" nopass
+    [ -s "$PKI_DIR/issued/$name.crt" ] || die "certificate not created"
+    [ -s "$PKI_DIR/private/$name.key" ] || die "private key not created"
+    echo "ok"
+    ;;
+
+  revoke)
+    name="${1:-}"; valid_name "$name"
+    [ -e "$PKI_DIR/issued/$name.crt" ] || die "no such issued certificate"
+    run_easyrsa revoke "$name"
+    run_easyrsa gen-crl
+    [ -s "$PKI_DIR/crl.pem" ] || die "CRL not generated"
+    echo "ok"
+    ;;
+
+  gen-crl)
+    run_easyrsa gen-crl
+    [ -s "$PKI_DIR/crl.pem" ] || die "CRL not generated"
+    echo "ok"
+    ;;
+
+  read-ca)
+    cat "$PKI_DIR/ca.crt"
+    ;;
+
+  read-ta)
+    # Follows the symlink to /etc/openvpn/server/ta.key when present.
+    ta="$PKI_DIR/ta.key"
+    [ -e "$ta" ] || ta=/etc/openvpn/server/ta.key
+    cat "$ta"
+    ;;
+
+  read-cert)
+    name="${1:-}"; valid_name "$name"
+    cat "$PKI_DIR/issued/$name.crt"
+    ;;
+
+  read-key)
+    name="${1:-}"; valid_name "$name"
+    cat "$PKI_DIR/private/$name.key"
+    ;;
+
+  read-index)
+    cat "$PKI_DIR/index.txt"
+    ;;
+
+  pki-status)
+    name="${1:-}"; valid_name "$name"
+    r=0; c=0; k=0
+    [ -e "$PKI_DIR/reqs/$name.req" ] && r=1
+    [ -e "$PKI_DIR/issued/$name.crt" ] && c=1
+    [ -e "$PKI_DIR/private/$name.key" ] && k=1
+    echo "req=$r cert=$c key=$k"
+    ;;
+
+  crl-status)
+    f="$PKI_DIR/crl.pem"
+    if [ -e "$f" ]; then
+      echo "mtime=$(stat -c %Y "$f") size=$(stat -c %s "$f")"
+    else
+      echo "mtime=0 size=0"
+    fi
+    ;;
+
+  *)
+    die "unknown sub-command: ${cmd:-<none>}"
+    ;;
+esac

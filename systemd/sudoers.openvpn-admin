@@ -1,0 +1,9 @@
+# Install as /etc/sudoers.d/openvpn-admin  (mode 0440, root:root)
+# Grants the panel's service account exactly ONE command: the privileged
+# helper, which itself re-validates every argument.
+
+Defaults!/opt/openvpn-admin/bin/ovpn-helper !requiretty
+Defaults!/opt/openvpn-admin/bin/ovpn-helper !syslog
+Defaults:openvpn-admin  env_reset, secure_path="/usr/sbin:/usr/bin:/sbin:/bin"
+
+openvpn-admin ALL=(root) NOPASSWD: /opt/openvpn-admin/bin/ovpn-helper

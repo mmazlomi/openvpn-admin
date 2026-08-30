@@ -1,0 +1,223 @@
+:root {
+  --bg: #0f172a;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warn: #d97706;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, .1), 0 1px 2px rgba(0, 0, 0, .06);
+  font-family: "Vazirmatn", "Segoe UI", Tahoma, system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+/* The `hidden` attribute must always win, even over `.modal-backdrop`
+   (display:flex) and other components that set an explicit display. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--surface-2);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+h1, h2, h3 { font-weight: 700; }
+a { color: var(--primary); }
+.muted { color: var(--muted); font-size: .9em; }
+.center { text-align: center; }
+
+/* ---------- login ---------- */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1e3a8a, #0f172a);
+}
+.login-card {
+  background: var(--surface);
+  padding: 2.5rem;
+  border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, .35);
+  width: min(92vw, 380px);
+}
+.login-card h1 { margin: 0 0 .25rem; font-size: 1.35rem; }
+.login-card form { display: flex; flex-direction: column; gap: .35rem; margin-top: 1.5rem; }
+
+label { font-size: .85rem; font-weight: 600; margin-top: .5rem; }
+input[type=text], input[type=password] {
+  padding: .6rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  background: var(--surface);
+  color: var(--text);
+}
+input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius);
+  padding: .6rem 1rem;
+  font-weight: 600;
+}
+button:disabled { opacity: .6; cursor: progress; }
+
+.btn-primary, #login-btn { background: var(--primary); color: #fff; margin-top: 1rem; }
+.btn-primary:hover, #login-btn:hover { background: var(--primary-hover); }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.btn-ghost:hover { background: var(--surface-2); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-link {
+  background: none; border: none; color: var(--primary);
+  padding: .2rem .4rem; text-decoration: underline;
+}
+
+.error { color: var(--danger); font-size: .88rem; margin: .5rem 0 0; }
+.success { color: var(--success); font-size: .9rem; margin-top: .75rem; }
+
+/* ---------- layout ---------- */
+.topbar {
+  background: var(--bg);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem 1.25rem;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.brand { font-weight: 700; font-size: 1.05rem; }
+.topbar-right { display: flex; align-items: center; gap: .75rem; }
+.topbar .btn-ghost { color: #fff; border-color: rgba(255, 255, 255, .3); }
+.topbar .btn-ghost:hover { background: rgba(255, 255, 255, .12); }
+
+.badge {
+  font-size: .78rem;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .15);
+}
+.badge.ok { background: rgba(22, 163, 74, .25); }
+.badge.bad { background: rgba(220, 38, 38, .3); }
+
+.container { max-width: 1080px; margin: 1.5rem auto; padding: 0 1rem; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  box-shadow: var(--shadow);
+}
+.card-label { color: var(--muted); font-size: .82rem; }
+.card-value { font-size: 1.6rem; font-weight: 700; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.panel-head h2 { margin: 0; font-size: 1.05rem; }
+.panel-actions { display: flex; gap: .5rem; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { text-align: right; padding: .7rem 1rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { background: var(--surface-2); font-weight: 600; color: var(--muted); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--surface-2); }
+td.actions { display: flex; gap: .35rem; flex-wrap: wrap; }
+code, .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; direction: ltr; unicode-bidi: embed; }
+
+.status-pill {
+  font-size: .78rem;
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.status-active { background: #dcfce7; color: #166534; }
+.status-revoked { background: #fee2e2; color: #991b1b; }
+.status-archived { background: #e2e8f0; color: #475569; }
+.dot-online { color: var(--success); font-weight: 700; }
+
+/* ---------- modal ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 50;
+}
+.modal {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: min(92vw, 440px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .3);
+}
+.modal h3 { margin-top: 0; }
+.modal form { display: flex; flex-direction: column; gap: .3rem; }
+.modal-actions { display: flex; justify-content: flex-start; gap: .5rem; margin-top: 1.25rem; }
+
+.details { display: grid; grid-template-columns: max-content 1fr; gap: .5rem 1rem; margin: 1rem 0; }
+.details dt { color: var(--muted); font-size: .85rem; }
+.details dd { margin: 0; word-break: break-all; }
+
+.toast {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg);
+  color: #fff;
+  padding: .7rem 1.25rem;
+  border-radius: var(--radius);
+  z-index: 60;
+  box-shadow: var(--shadow);
+}
+.toast.bad { background: var(--danger); }
+.toast.good { background: var(--success); }
+
+@media (max-width: 640px) {
+  .card-value { font-size: 1.3rem; }
+  th, td { padding: .55rem .6rem; }
+}
