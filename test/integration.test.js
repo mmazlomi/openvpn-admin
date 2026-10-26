@@ -181,14 +181,22 @@ test('static IP assignment and duplicate checking', async () => {
   });
   assert.equal(badIp.status, 400);
 
-  // 6. Assign free static IP to static-user2
-  const assignOk = await request(server, 'POST', '/api/clients/static-user2/ip', {
+  // 5b. Reject IP in dynamic range (> 50)
+  const dynamicRangeIp = await request(server, 'POST', '/api/clients/static-user2/ip', {
     cookie,
     headers: H,
     body: { staticIp: '10.8.0.51' },
   });
+  assert.equal(dynamicRangeIp.status, 400);
+
+  // 6. Assign free static IP within 2-50 to static-user2
+  const assignOk = await request(server, 'POST', '/api/clients/static-user2/ip', {
+    cookie,
+    headers: H,
+    body: { staticIp: '10.8.0.49' },
+  });
   assert.equal(assignOk.status, 200);
-  assert.equal(assignOk.json.client.staticIp, '10.8.0.51');
+  assert.equal(assignOk.json.client.staticIp, '10.8.0.49');
 
   // 7. Verify list endpoint returns static IPs
   const list = await request(server, 'GET', '/api/clients', { cookie });
@@ -196,13 +204,13 @@ test('static IP assignment and duplicate checking', async () => {
   const u1 = list.json.clients.find((c) => c.name === 'static-user1');
   const u2 = list.json.clients.find((c) => c.name === 'static-user2');
   assert.equal(u1.staticIp, '10.8.0.50');
-  assert.equal(u2.staticIp, '10.8.0.51');
+  assert.equal(u2.staticIp, '10.8.0.49');
 
   // 8. Idempotent: assigning the same IP to the same client succeeds
   const reassignSame = await request(server, 'POST', '/api/clients/static-user2/ip', {
     cookie,
     headers: H,
-    body: { staticIp: '10.8.0.51' },
+    body: { staticIp: '10.8.0.49' },
   });
   assert.equal(reassignSame.status, 200);
 

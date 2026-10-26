@@ -137,7 +137,7 @@ export function parseCidr(cidr) {
  * Validate an IPv4 address for static assignment.
  * Returns normalized string or null if empty/omitted.
  */
-export function validateStaticIp(raw, networkCidr = '10.8.0.0/24') {
+export function validateStaticIp(raw, networkCidr = '10.8.0.0/24', options = {}) {
   if (raw === undefined || raw === null || raw === '') return null;
   if (typeof raw !== 'string') {
     throw new ValidationError('IP address must be a string', 'INVALID_IP');
@@ -177,6 +177,31 @@ export function validateStaticIp(raw, networkCidr = '10.8.0.0/24') {
 
   if (ipInt === parsed.serverInt) {
     throw new ValidationError(`IP ${ip} is reserved for the VPN server gateway`, 'IP_RESERVED');
+  }
+
+  // Partitioned range check: static IPs are restricted to [minStaticIp, maxStaticIp]
+  // Default: 10.8.0.2 to 10.8.0.50
+  const minStaticIp = options.minIp !== undefined ? options.minIp : intToIp(parsed.networkInt + 2);
+  const maxStaticIp = options.maxIp !== undefined ? options.maxIp : intToIp(parsed.networkInt + 50);
+
+  if (minStaticIp) {
+    const minStaticInt = ipToInt(minStaticIp);
+    if (ipInt < minStaticInt) {
+      throw new ValidationError(
+        `IP ${ip} is below the minimum allowed static IP (${minStaticIp})`,
+        'IP_OUT_OF_RANGE',
+      );
+    }
+  }
+
+  if (maxStaticIp) {
+    const maxStaticInt = ipToInt(maxStaticIp);
+    if (ipInt > maxStaticInt) {
+      throw new ValidationError(
+        `IP ${ip} is above the maximum allowed static IP (${maxStaticIp}). IPs above ${maxStaticIp} are reserved for dynamic assignment.`,
+        'IP_OUT_OF_RANGE',
+      );
+    }
   }
 
   return ip;

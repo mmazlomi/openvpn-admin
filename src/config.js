@@ -93,6 +93,10 @@ const config = {
     protocol: (process.env.OPENVPN_PROTOCOL || 'udp').toLowerCase(),
   },
   vpnNetwork: process.env.VPN_NETWORK || '10.8.0.0/24',
+  staticIpMin: process.env.STATIC_IP_MIN || '10.8.0.2',
+  staticIpMax: process.env.STATIC_IP_MAX || '10.8.0.50',
+  dynamicIpMin: process.env.DYNAMIC_IP_MIN || '10.8.0.51',
+  dynamicIpMax: process.env.DYNAMIC_IP_MAX || '10.8.0.254',
   ccdDir: process.env.CCD_DIR || '/etc/openvpn/ccd',
 
   // OpenVPN management interface for live connection status.

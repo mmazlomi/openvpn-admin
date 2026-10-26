@@ -82,9 +82,9 @@
         <label for="client-ip">آدرس IP اختصاصی (اختیاری)</label>
         <input id="client-ip" name="staticIp" type="text"
                pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
-               placeholder="مثلاً 10.8.0.50 (خالی = پویا)"
+               placeholder="مثلاً 10.8.0.25 (خالی = پویا)"
                spellcheck="false" autocapitalize="none" />
-        <small class="hint-text">محدوده مجاز: 10.8.0.2 تا 10.8.0.254 (سیستم از IP تکراری جلوگیری می‌کند)</small>
+        <small class="hint-text">محدوده مجاز استاتیک: 10.8.0.2 تا 10.8.0.50 (IPهای بالاتر از 50 برای تخصیص پویا هستند)</small>
         <label for="client-notes">یادداشت (اختیاری)</label>
         <input id="client-notes" name="notes" type="text" maxlength="500" />
         <div id="create-error" class="error" hidden></div>
@@ -121,9 +121,9 @@
         <label for="ip-address-input">آدرس IP استاتیک</label>
         <input id="ip-address-input" name="staticIp" type="text"
                pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
-               placeholder="مثلاً 10.8.0.50 (خالی = پویا)"
+               placeholder="مثلاً 10.8.0.25 (خالی = پویا)"
                spellcheck="false" autocapitalize="none" />
-        <small class="hint-text">محدوده مجاز: 10.8.0.2 تا 10.8.0.254. بررسی تکراری نبودن IP انجام می‌شود.</small>
+        <small class="hint-text">محدوده مجاز استاتیک: 10.8.0.2 تا 10.8.0.50 (IPهای بالاتر از 50 برای تخصیص پویا هستند)</small>
         <div id="ip-error" class="error" hidden></div>
         <div class="modal-actions">
           <button type="button" class="btn-ghost" data-close>انصراف</button>

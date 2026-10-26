@@ -45,14 +45,20 @@ test('CIDR parsing and netmask calculation', () => {
   assert.equal(res.maxClient, '10.8.0.254');
 });
 
-test('valid static IPs within subnet', () => {
+test('valid static IPs within subnet (range 10.8.0.2 - 10.8.0.50)', () => {
   assert.equal(validateStaticIp('10.8.0.2', '10.8.0.0/24'), '10.8.0.2');
+  assert.equal(validateStaticIp('10.8.0.25', '10.8.0.0/24'), '10.8.0.25');
   assert.equal(validateStaticIp('10.8.0.50', '10.8.0.0/24'), '10.8.0.50');
-  assert.equal(validateStaticIp('10.8.0.254', '10.8.0.0/24'), '10.8.0.254');
-  assert.equal(validateStaticIp('  10.8.0.100  ', '10.8.0.0/24'), '10.8.0.100');
+  assert.equal(validateStaticIp('  10.8.0.30  ', '10.8.0.0/24'), '10.8.0.30');
   assert.equal(validateStaticIp(null, '10.8.0.0/24'), null);
   assert.equal(validateStaticIp('', '10.8.0.0/24'), null);
   assert.equal(validateStaticIp(undefined, '10.8.0.0/24'), null);
+
+  // Custom range
+  assert.equal(
+    validateStaticIp('10.8.0.100', '10.8.0.0/24', { minIp: '10.8.0.2', maxIp: '10.8.0.254' }),
+    '10.8.0.100',
+  );
 });
 
 test('rejects invalid or reserved static IPs', () => {
@@ -67,8 +73,13 @@ test('rejects invalid or reserved static IPs', () => {
   assert.throws(() => validateStaticIp('192.168.1.1', '10.8.0.0/24'));
   assert.throws(() => validateStaticIp('10.8.1.5', '10.8.0.0/24'));
 
-  // reserved IPs
+  // reserved IPs (network, gateway, broadcast)
   assert.throws(() => validateStaticIp('10.8.0.0', '10.8.0.0/24')); // network
   assert.throws(() => validateStaticIp('10.8.0.1', '10.8.0.0/24')); // server gateway
   assert.throws(() => validateStaticIp('10.8.0.255', '10.8.0.0/24')); // broadcast
+
+  // above static range (> 50, reserved for dynamic pool)
+  assert.throws(() => validateStaticIp('10.8.0.51', '10.8.0.0/24'));
+  assert.throws(() => validateStaticIp('10.8.0.100', '10.8.0.0/24'));
+  assert.throws(() => validateStaticIp('10.8.0.254', '10.8.0.0/24'));
 });

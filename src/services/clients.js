@@ -78,7 +78,10 @@ export async function createClient(rawName, rawNotes, rawStaticIpOrActor, maybeA
 
   const name = validateClientName(rawName);
   const notes = validateNotes(rawNotes);
-  const staticIp = validateStaticIp(rawStaticIp, config.vpnNetwork);
+  const staticIp = validateStaticIp(rawStaticIp, config.vpnNetwork, {
+    minIp: config.staticIpMin,
+    maxIp: config.staticIpMax,
+  });
 
   if (staticIp) {
     const dup = clientsDb.findByStaticIp(staticIp);
@@ -136,7 +139,10 @@ export async function setClientIp(rawName, rawStaticIp, actor) {
     throw new ConflictError('Cannot assign IP to a revoked or archived client', 'CLIENT_NOT_ACTIVE');
   }
 
-  const staticIp = validateStaticIp(rawStaticIp, config.vpnNetwork);
+  const staticIp = validateStaticIp(rawStaticIp, config.vpnNetwork, {
+    minIp: config.staticIpMin,
+    maxIp: config.staticIpMax,
+  });
 
   if (staticIp === null) {
     if (row.static_ip) {

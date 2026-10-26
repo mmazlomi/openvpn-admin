@@ -45,6 +45,8 @@ apiRouter.get('/status', async (_req, res, next) => {
         port: config.openvpn.port,
         protocol: config.openvpn.protocol,
         network: config.vpnNetwork,
+        staticIpRange: { min: config.staticIpMin, max: config.staticIpMax },
+        dynamicIpRange: { min: config.dynamicIpMin, max: config.dynamicIpMax },
       },
       management: { available: status.available },
       onlineCount: status.clients.length,
