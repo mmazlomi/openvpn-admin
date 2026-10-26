@@ -1,35 +1,145 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>پنل مدیریت OpenVPN</title>
+  <title data-i18n="brand">پنل مدیریت OpenVPN</title>
   <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/i18n.js"></script>
 </head>
 <body>
+  <!-- Header / Topbar -->
   <header class="topbar">
-    <div class="brand">پنل مدیریت OpenVPN</div>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <span data-i18n="brand">پنل مدیریت OpenVPN</span>
+    </div>
+
     <div class="topbar-right">
-      <span id="server-badge" class="badge">در حال بارگذاری…</span>
-      <span id="whoami" class="muted"></span>
-      <button id="logout-btn" class="btn-ghost">خروج</button>
+      <span id="server-badge" class="badge">
+        <span class="pulse-dot"></span>
+        <span data-i18n="loading">در حال بارگذاری…</span>
+      </span>
+
+      <!-- Theme Switcher -->
+      <button id="theme-toggle" class="btn-topbar-ctrl" type="button" title="تغییر تم">
+        <span id="theme-icon">☀️</span>
+      </button>
+
+      <!-- Language Switcher -->
+      <button id="lang-toggle" class="btn-topbar-ctrl" type="button" title="Switch Language">
+        <span>🌐</span>
+        <span id="lang-label">EN</span>
+      </button>
+
+      <!-- User Badge -->
+      <div class="user-badge">
+        <span>👤</span>
+        <span id="whoami" class="mono font-bold"></span>
+      </div>
+
+      <!-- Logout -->
+      <button id="logout-btn" class="btn-topbar-ctrl" type="button" data-i18n="logout">خروج</button>
     </div>
   </header>
 
+  <!-- Main Container -->
   <main class="container">
+    <!-- Stat Cards -->
     <section class="cards" id="stat-cards">
-      <div class="card"><span class="card-label">کل کاربران</span><span class="card-value" id="stat-total">–</span></div>
-      <div class="card"><span class="card-label">فعال</span><span class="card-value" id="stat-active">–</span></div>
-      <div class="card"><span class="card-label">لغو شده</span><span class="card-value" id="stat-revoked">–</span></div>
-      <div class="card"><span class="card-label">آنلاین</span><span class="card-value" id="stat-online">–</span></div>
+      <div class="card">
+        <div class="card-info">
+          <span class="card-label" data-i18n="statTotal">کل کاربران</span>
+          <span class="card-value" id="stat-total">–</span>
+        </div>
+        <div class="card-icon-wrapper card-icon-total">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-info">
+          <span class="card-label" data-i18n="statActive">کاربران فعال</span>
+          <span class="card-value" id="stat-active">–</span>
+        </div>
+        <div class="card-icon-wrapper card-icon-active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-info">
+          <span class="card-label" data-i18n="statRevoked">لغو شده</span>
+          <span class="card-value" id="stat-revoked">–</span>
+        </div>
+        <div class="card-icon-wrapper card-icon-revoked">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-info">
+          <span class="card-label" data-i18n="statOnline">کاربران آنلاین</span>
+          <span class="card-value" id="stat-online">–</span>
+        </div>
+        <div class="card-icon-wrapper card-icon-online">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+            <line x1="12" y1="20" x2="12.01" y2="20"/>
+          </svg>
+        </div>
+      </div>
     </section>
 
+    <!-- Users Panel -->
     <section class="panel">
       <div class="panel-head">
-        <h2>کاربران</h2>
+        <div class="panel-title-group">
+          <h2 data-i18n="usersTitle">کاربران</h2>
+          <span class="counter-badge" id="users-count-badge">0</span>
+        </div>
         <div class="panel-actions">
-          <button id="sync-btn" class="btn-ghost">همگام‌سازی PKI</button>
-          <button id="new-client-btn" class="btn-primary">+ ایجاد کاربر</button>
+          <button id="sync-btn" class="btn-ghost" type="button" data-i18n="syncPki">همگام‌سازی PKI</button>
+          <button id="new-client-btn" class="btn-primary" type="button" data-i18n="newUser">+ کاربر جدید</button>
+        </div>
+      </div>
+
+      <!-- Search & Status Filter Toolbar -->
+      <div class="table-toolbar">
+        <div class="search-box">
+          <span class="search-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </span>
+          <input id="client-search" class="search-input" type="text" data-i18n-ph="searchPlaceholder" placeholder="جستجو بر اساس نام، IP یا یادداشت…" autocomplete="off" />
+        </div>
+
+        <div class="filter-tabs" id="status-filter-tabs">
+          <button type="button" class="filter-tab active" data-filter="all" data-i18n="filterAll">همه</button>
+          <button type="button" class="filter-tab" data-filter="online" data-i18n="filterOnline">آنلاین</button>
+          <button type="button" class="filter-tab" data-filter="active" data-i18n="filterActive">فعال</button>
+          <button type="button" class="filter-tab" data-filter="paused" data-i18n="filterPaused">معلق</button>
+          <button type="button" class="filter-tab" data-filter="revoked" data-i18n="filterRevoked">لغو شده</button>
         </div>
       </div>
 
@@ -39,31 +149,40 @@
         <table id="clients-table">
           <thead>
             <tr>
-              <th>نام</th>
-              <th>وضعیت</th>
-              <th>IP تخصیص‌یافته</th>
-              <th>IP متصل فعلی</th>
-              <th>آخرین IP واقعی</th>
-              <th>مصرف ترافیک</th>
-              <th>ایجاد</th>
-              <th>انقضا</th>
-              <th>آخرین اتصال</th>
-              <th>عملیات</th>
+              <th data-i18n="colName">نام کاربر</th>
+              <th data-i18n="colStatus">وضعیت</th>
+              <th data-i18n="colAssignedIp">IP تخصیص‌یافته</th>
+              <th data-i18n="colConnectedIp">IP متصل فعلی</th>
+              <th data-i18n="colLastRealIp">آخرین IP واقعی</th>
+              <th data-i18n="colTraffic">مصرف ترافیک</th>
+              <th data-i18n="colCreated">تاریخ ایجاد</th>
+              <th data-i18n="colExpires">تاریخ انقضا</th>
+              <th data-i18n="colLastSeen">آخرین اتصال</th>
+              <th data-i18n="colActions">عملیات</th>
             </tr>
           </thead>
           <tbody id="clients-body">
-            <tr><td colspan="10" class="muted center">در حال بارگذاری…</td></tr>
+            <tr><td colspan="10" class="muted center" data-i18n="loading">در حال بارگذاری…</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
+    <!-- Audit Log Panel -->
     <section class="panel">
-      <div class="panel-head"><h2>گزارش رویدادها</h2></div>
+      <div class="panel-head">
+        <h2 data-i18n="auditTitle">گزارش رویدادها</h2>
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>زمان</th><th>مدیر</th><th>عملیات</th><th>کاربر</th><th>IP</th></tr>
+            <tr>
+              <th data-i18n="auditColTime">زمان</th>
+              <th data-i18n="auditColAdmin">مدیر</th>
+              <th data-i18n="auditColAction">عملیات</th>
+              <th data-i18n="auditColClient">کاربر</th>
+              <th data-i18n="auditColIp">IP مدیر</th>
+            </tr>
           </thead>
           <tbody id="audit-body">
             <tr><td colspan="5" class="muted center">–</td></tr>
@@ -76,28 +195,39 @@
   <!-- Create client modal -->
   <div class="modal-backdrop" id="create-modal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="create-title">
-      <h3 id="create-title">ایجاد کاربر جدید</h3>
+      <div class="modal-header">
+        <h3 id="create-title" data-i18n="createTitle">ایجاد کاربر جدید OpenVPN</h3>
+        <button type="button" class="modal-close-btn" data-close title="Close">✕</button>
+      </div>
       <form id="create-form" autocomplete="off">
-        <label for="client-name">نام کاربر</label>
-        <input id="client-name" name="name" type="text" required
-               pattern="[a-zA-Z0-9_-]+" maxlength="64"
-               placeholder="letters, digits, _ or -" spellcheck="false" autocapitalize="none" />
-        <label for="client-ip">آدرس IP اختصاصی (اختیاری)</label>
-        <input id="client-ip" name="staticIp" type="text"
-               pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
-               placeholder="مثلاً 10.8.0.25 (خالی = پویا)"
-               spellcheck="false" autocapitalize="none" />
-        <small class="hint-text">محدوده مجاز استاتیک: 10.8.0.2 تا 10.8.0.50 (IPهای بالاتر از 50 برای تخصیص پویا هستند)</small>
-        <label for="client-notes">یادداشت (اختیاری)</label>
-        <input id="client-notes" name="notes" type="text" maxlength="500" />
+        <div>
+          <label for="client-name" data-i18n="createNameLabel">نام کاربر</label>
+          <input id="client-name" name="name" type="text" required
+                 pattern="[a-zA-Z0-9_-]+" maxlength="64"
+                 data-i18n-ph="createNamePlaceholder"
+                 placeholder="حروف انگلیسی، ارقام، _ یا -" spellcheck="false" autocapitalize="none" />
+        </div>
+        <div>
+          <label for="client-ip" data-i18n="createIpLabel">آدرس IP اختصاصی (اختیاری)</label>
+          <input id="client-ip" name="staticIp" type="text"
+                 pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+                 data-i18n-ph="createIpPlaceholder"
+                 placeholder="مثلاً 10.8.0.25 (خالی = پویا)"
+                 spellcheck="false" autocapitalize="none" />
+          <div class="hint-text" data-i18n="createIpHint">محدوده مجاز استاتیک: 10.8.0.2 تا 10.8.0.50 (IPهای بالاتر از 50 برای تخصیص پویا هستند)</div>
+        </div>
+        <div>
+          <label for="client-notes" data-i18n="createNotesLabel">یادداشت (اختیاری)</label>
+          <input id="client-notes" name="notes" type="text" maxlength="500" />
+        </div>
         <div id="create-error" class="error" hidden></div>
         <div id="create-success" class="success" hidden>
-          <p>کاربر با موفقیت ایجاد شد.</p>
-          <a id="create-download" class="btn-primary" href="#">دانلود فایل OpenVPN</a>
+          <p data-i18n="createSuccess">کاربر با موفقیت ایجاد شد.</p>
+          <a id="create-download" class="btn-primary" href="#" style="display:inline-block; margin-top:.5rem;" data-i18n="createDownloadOvpn">دانلود فایل کانفیگ OpenVPN</a>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-ghost" data-close>بستن</button>
-          <button type="submit" class="btn-primary" id="create-submit">ایجاد کاربر</button>
+          <button type="button" class="btn-ghost" data-close data-i18n="btnCancel">انصراف</button>
+          <button type="submit" class="btn-primary" id="create-submit" data-i18n="btnCreate">ایجاد کاربر</button>
         </div>
       </form>
     </div>
@@ -106,55 +236,67 @@
   <!-- Details modal -->
   <div class="modal-backdrop" id="details-modal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="details-title">
-      <h3 id="details-title">جزئیات کاربر</h3>
+      <div class="modal-header">
+        <h3 id="details-title" data-i18n="detailsTitle">مشخصات کامل کاربر</h3>
+        <button type="button" class="modal-close-btn" data-close title="Close">✕</button>
+      </div>
       <dl class="details" id="details-body"></dl>
       <div class="modal-actions">
-        <button type="button" class="btn-primary" id="details-view-history-btn">مشاهده تاریخچه اتصالات</button>
-        <button type="button" class="btn-ghost" data-close>بستن</button>
+        <button type="button" class="btn-primary" id="details-view-history-btn" data-i18n="detailsBtnHistory">مشاهده تاریخچه اتصالات</button>
+        <button type="button" class="btn-ghost" data-close data-i18n="btnClose">بستن</button>
       </div>
     </div>
   </div>
 
   <!-- Client Connection History modal -->
   <div class="modal-backdrop" id="history-modal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="history-title" style="max-width: 800px; width: 100%;">
-      <h3 id="history-title">تاریخچه اتصالات کاربر: <span id="history-client-label" class="mono"></span></h3>
-      <div class="cards" id="history-summary-cards" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin: 1rem 0 0.5rem;">
-        <div class="card" style="padding: 0.6rem 0.85rem;">
-          <span class="card-label">کل ترافیک مصرفی</span>
-          <span class="card-value" id="history-total-traffic" style="font-size: 1.15rem;">–</span>
-          <span id="history-traffic-detail" class="hint-text" style="margin: 0; font-size: 0.75rem;">–</span>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="history-title" style="max-width: 840px; width: 100%;">
+      <div class="modal-header">
+        <h3 id="history-title"><span data-i18n="historyTitle">تاریخچه اتصالات کاربر: </span><span id="history-client-label" class="mono font-bold" style="color:var(--primary);"></span></h3>
+        <button type="button" class="modal-close-btn" data-close title="Close">✕</button>
+      </div>
+      <div class="cards" id="history-summary-cards" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin: 0 0 1rem;">
+        <div class="card" style="padding: 0.75rem 1rem;">
+          <div class="card-info">
+            <span class="card-label" data-i18n="historyCardTotalTraffic">کل ترافیک مصرفی</span>
+            <span class="card-value mono" id="history-total-traffic">–</span>
+            <span id="history-traffic-detail" class="hint-text mono" style="margin: 0; font-size: 0.75rem;">–</span>
+          </div>
         </div>
-        <div class="card" style="padding: 0.6rem 0.85rem;">
-          <span class="card-label">آخرین IP واقعی</span>
-          <span class="card-value mono" id="history-last-real-ip" style="font-size: 1.05rem;">–</span>
-          <span id="history-real-port" class="hint-text" style="margin: 0; font-size: 0.75rem;">–</span>
+        <div class="card" style="padding: 0.75rem 1rem;">
+          <div class="card-info">
+            <span class="card-label" data-i18n="historyCardLastRealIp">آخرین IP واقعی</span>
+            <span class="card-value mono" id="history-last-real-ip" style="font-size: 1.15rem;">–</span>
+            <span id="history-real-port" class="hint-text mono" style="margin: 0; font-size: 0.75rem;">–</span>
+          </div>
         </div>
-        <div class="card" style="padding: 0.6rem 0.85rem;">
-          <span class="card-label">تعداد دفعات اتصال</span>
-          <span class="card-value" id="history-session-count" style="font-size: 1.15rem;">–</span>
-          <span class="hint-text" style="margin: 0; font-size: 0.75rem;">نشست‌های ثبت شده</span>
+        <div class="card" style="padding: 0.75rem 1rem;">
+          <div class="card-info">
+            <span class="card-label" data-i18n="historyCardSessions">تعداد دفعات اتصال</span>
+            <span class="card-value mono" id="history-session-count">–</span>
+            <span class="hint-text" style="margin: 0; font-size: 0.75rem;" data-i18n="historySessionsHint">نشست‌های ثبت شده</span>
+          </div>
         </div>
       </div>
-      <div class="table-wrap" style="max-height: 400px; overflow-y: auto; margin: 1rem 0;">
+      <div class="table-wrap" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">
         <table>
           <thead>
             <tr>
-              <th>وضعیت</th>
-              <th>IP متصل (VPN)</th>
-              <th>آدرس اینترنتی (Real IP)</th>
-              <th>زمان شروع اتصال</th>
-              <th>زمان قطع</th>
-              <th>ترافیک مصرفی</th>
+              <th data-i18n="historyColStatus">وضعیت</th>
+              <th data-i18n="historyColVpnIp">IP متصل (VPN)</th>
+              <th data-i18n="historyColRealIp">آدرس اینترنتی (Real IP)</th>
+              <th data-i18n="historyColStart">زمان شروع اتصال</th>
+              <th data-i18n="historyColEnd">زمان قطع</th>
+              <th data-i18n="historyColTraffic">ترافیک نشست</th>
             </tr>
           </thead>
           <tbody id="history-body">
-            <tr><td colspan="6" class="muted center">در حال بارگذاری…</td></tr>
+            <tr><td colspan="6" class="muted center" data-i18n="loading">در حال بارگذاری…</td></tr>
           </tbody>
         </table>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-ghost" data-close>بستن</button>
+        <button type="button" class="btn-ghost" data-close data-i18n="btnClose">بستن</button>
       </div>
     </div>
   </div>
@@ -162,21 +304,27 @@
   <!-- Edit IP modal -->
   <div class="modal-backdrop" id="ip-modal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ip-title">
-      <h3 id="ip-title">تنظیم IP اختصاصی</h3>
+      <div class="modal-header">
+        <h3 id="ip-title" data-i18n="ipTitle">تنظیم IP اختصاصی</h3>
+        <button type="button" class="modal-close-btn" data-close title="Close">✕</button>
+      </div>
       <form id="ip-form" autocomplete="off">
         <input type="hidden" id="ip-client-name" />
-        <p class="modal-intro">تعیین یا تغییر آدرس IP برای کاربر: <strong id="ip-modal-client-label" class="mono"></strong></p>
-        <label for="ip-address-input">آدرس IP استاتیک</label>
-        <input id="ip-address-input" name="staticIp" type="text"
-               pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
-               placeholder="مثلاً 10.8.0.25 (خالی = پویا)"
-               spellcheck="false" autocapitalize="none" />
-        <small class="hint-text">محدوده مجاز استاتیک: 10.8.0.2 تا 10.8.0.50 (IPهای بالاتر از 50 برای تخصیص پویا هستند)</small>
+        <p class="muted" style="margin:0;"><span data-i18n="ipIntro">تعیین یا تغییر آدرس IP برای کاربر: </span><strong id="ip-modal-client-label" class="mono font-bold" style="color:var(--primary);"></strong></p>
+        <div>
+          <label for="ip-address-input" data-i18n="ipLabel">آدرس IP استاتیک</label>
+          <input id="ip-address-input" name="staticIp" type="text"
+                 pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+                 data-i18n-ph="ipPlaceholder"
+                 placeholder="مثلاً 10.8.0.25 (خالی = پویا)"
+                 spellcheck="false" autocapitalize="none" />
+          <div class="hint-text" data-i18n="createIpHint">محدوده مجاز استاتیک: 10.8.0.2 تا 10.8.0.50 (IPهای بالاتر از 50 برای تخصیص پویا هستند)</div>
+        </div>
         <div id="ip-error" class="error" hidden></div>
         <div class="modal-actions">
-          <button type="button" class="btn-ghost" data-close>انصراف</button>
-          <button type="button" class="btn-danger" id="ip-clear-btn" hidden>حذف IP (تبدیل به پویا)</button>
-          <button type="submit" class="btn-primary" id="ip-submit">ذخیره IP</button>
+          <button type="button" class="btn-ghost" data-close data-i18n="btnCancel">انصراف</button>
+          <button type="button" class="btn-danger" id="ip-clear-btn" hidden data-i18n="ipClearBtn">تبدیل به IP پویا</button>
+          <button type="submit" class="btn-primary" id="ip-submit" data-i18n="ipSubmitBtn">ذخیره تنظیمات IP</button>
         </div>
       </form>
     </div>
@@ -185,35 +333,42 @@
   <!-- Renew/Extend modal -->
   <div class="modal-backdrop" id="renew-modal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="renew-title">
-      <h3 id="renew-title">تمدید تاریخ انقضا</h3>
+      <div class="modal-header">
+        <h3 id="renew-title" data-i18n="renewTitle">تمدید تاریخ انقضای گواهی</h3>
+        <button type="button" class="modal-close-btn" data-close title="Close">✕</button>
+      </div>
       <form id="renew-form" autocomplete="off">
         <input type="hidden" id="renew-client-name" />
-        <p class="modal-intro">تمدید اعتبار گواهی برای کاربر: <strong id="renew-client-label" class="mono"></strong></p>
-        <p id="renew-current-expiry" class="hint-text"></p>
-        <label for="renew-days-select">مدت زمان تمدید</label>
-        <select id="renew-days-select">
-          <option value="30">۳۰ روز (۱ ماه)</option>
-          <option value="90">۹۰ روز (۳ ماه)</option>
-          <option value="180">۱۸۰ روز (۶ ماه)</option>
-          <option value="365" selected>۳۶۵ روز (۱ سال)</option>
-          <option value="825">۸۲۵ روز (~۲ سال و ۳ ماه)</option>
-          <option value="custom">سایر (تعداد روز دستی)...</option>
-        </select>
+        <p class="muted" style="margin:0;"><span data-i18n="renewIntro">تمدید اعتبار گواهی برای کاربر: </span><strong id="renew-client-label" class="mono font-bold" style="color:var(--primary);"></strong></p>
+        <p id="renew-current-expiry" class="hint-text mono" style="margin-top:0.25rem;"></p>
+        <div>
+          <label for="renew-days-select" data-i18n="renewSelectLabel">مدت زمان تمدید اعتبار</label>
+          <select id="renew-days-select">
+            <option value="30" data-i18n="renew30">۳۰ روز (۱ ماه)</option>
+            <option value="90" data-i18n="renew90">۹۰ روز (۳ ماه)</option>
+            <option value="180" data-i18n="renew180">۱۸۰ روز (۶ ماه)</option>
+            <option value="365" selected data-i18n="renew365">۳۶۵ روز (۱ سال)</option>
+            <option value="825" data-i18n="renew825">۸۲۵ روز (~۲ سال و ۳ ماه)</option>
+            <option value="custom" data-i18n="renewCustom">سایر (تعداد روز دستی)...</option>
+          </select>
+        </div>
         <div id="renew-custom-group" style="display:none; margin-top:.5rem;">
-          <label for="renew-custom-days">تعداد روز دستی (۱ تا ۳۶۵۰ روز)</label>
-          <input id="renew-custom-days" type="number" min="1" max="3650" placeholder="مثلاً 60" />
+          <label for="renew-custom-days" data-i18n="renewCustomLabel">تعداد روز دستی (۱ تا ۳۶۵۰ روز)</label>
+          <input id="renew-custom-days" type="number" min="1" max="3650" data-i18n-ph="renewCustomPlaceholder" placeholder="مثلاً 60" />
         </div>
         <div id="renew-error" class="error" hidden></div>
         <div class="modal-actions">
-          <button type="button" class="btn-ghost" data-close>انصراف</button>
-          <button type="submit" class="btn-primary" id="renew-submit">تمدید اعتبار</button>
+          <button type="button" class="btn-ghost" data-close data-i18n="btnCancel">انصراف</button>
+          <button type="submit" class="btn-primary" id="renew-submit" data-i18n="renewSubmitBtn">تمدید اعتبار</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Toast Notification -->
   <div id="toast" class="toast" hidden></div>
 
+  <!-- Main Application Script -->
   <script src="/js/app.js"></script>
 </body>
 </html>

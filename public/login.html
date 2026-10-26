@@ -1,24 +1,47 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ورود — پنل مدیریت OpenVPN</title>
+  <title data-i18n="loginTitle">ورود — پنل مدیریت OpenVPN</title>
   <link rel="stylesheet" href="/css/app.css" />
+  <script src="/js/i18n.js"></script>
 </head>
 <body class="login-page">
+  <div style="position: absolute; top: 1.25rem; inset-inline-end: 1.5rem; display: flex; gap: 0.5rem; z-index: 10;">
+    <button id="theme-toggle" class="btn-topbar-ctrl" type="button" title="تغییر تم">
+      <span id="theme-icon">☀️</span>
+    </button>
+    <button id="lang-toggle" class="btn-topbar-ctrl" type="button" title="Switch Language">
+      <span>🌐</span>
+      <span id="lang-label">EN</span>
+    </button>
+  </div>
+
   <main class="login-card">
-    <h1>پنل مدیریت OpenVPN</h1>
-    <p class="muted">برای ادامه وارد شوید</p>
+    <div class="brand-header">
+      <div class="brand-icon-large">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <h1 data-i18n="loginTitle">پنل مدیریت OpenVPN</h1>
+      <p class="muted" data-i18n="loginSubtitle" style="margin: 0; font-size: 0.88rem;">برای دسترسی به پنل مدیریت وارد شوید</p>
+    </div>
 
     <form id="login-form" autocomplete="off">
-      <label for="username">نام کاربری</label>
-      <input id="username" name="username" type="text" required autocapitalize="none" spellcheck="false" />
+      <div>
+        <label for="username" data-i18n="loginUsername">نام کاربری</label>
+        <input id="username" name="username" type="text" required autocapitalize="none" spellcheck="false" autofocus />
+      </div>
 
-      <label for="password">گذرواژه</label>
-      <input id="password" name="password" type="password" required />
+      <div>
+        <label for="password" data-i18n="loginPassword">گذرواژه</label>
+        <input id="password" name="password" type="password" required />
+      </div>
 
-      <button type="submit" id="login-btn">ورود</button>
+      <button type="submit" id="login-btn" class="btn-primary" style="width: 100%; margin-top: 0.5rem;" data-i18n="loginSubmit">ورود به سیستم</button>
       <p id="login-error" class="error" role="alert" hidden></p>
     </form>
   </main>
