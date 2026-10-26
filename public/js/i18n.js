@@ -86,6 +86,8 @@ const I18N = {
     actionArchiveTitle: 'بایگانی کردن حساب کاربر',
     actionDelete: 'حذف',
     actionDeleteTitle: 'حذف کامل حساب و فایل‌های کاربر',
+    actionMore: 'عملیات',
+    actionMoreTitle: 'سایر عملیات کاربر',
 
     // Traffic labels
     trafficDownload: 'دانلود',
@@ -259,6 +261,8 @@ const I18N = {
     actionArchiveTitle: 'Archive client record',
     actionDelete: 'Delete',
     actionDeleteTitle: 'Permanently remove client files and database record',
+    actionMore: 'More',
+    actionMoreTitle: 'More user actions',
 
     // Traffic labels
     trafficDownload: 'Down',

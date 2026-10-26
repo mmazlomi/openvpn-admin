@@ -50,21 +50,6 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/* Hash helper for deterministic avatar gradient */
-const AVATAR_COLORS = [
-  'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-  'linear-gradient(135deg, #10b981, #047857)',
-  'linear-gradient(135deg, #f59e0b, #b45309)',
-  'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-  'linear-gradient(135deg, #ec4899, #be185d)',
-  'linear-gradient(135deg, #06b6d4, #0e7490)',
-];
-function getAvatarGradient(name) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h << 5) - h + name.charCodeAt(i);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
-
 /* ---------- Toast Notifications ---------- */
 function toast(msg, kind) {
   const el = $('toast');
@@ -291,24 +276,27 @@ function renderClients() {
   body.innerHTML = '';
   for (const c of filtered) {
     const tr = document.createElement('tr');
-    tr.appendChild(cell(nameCell(c)));
-    tr.appendChild(cell(statusPill(c)));
-    tr.appendChild(cell(assignedIpCell(c)));
-    tr.appendChild(cell(connectedIpCell(c)));
-    tr.appendChild(cell(lastRealIpCell(c)));
-    tr.appendChild(cell(trafficCell(c)));
-    tr.appendChild(cell(fmtDateShort(c.createdAt)));
-    tr.appendChild(cell(c.status === 'revoked' ? '–' : fmtDateShort(c.expiresAt)));
-    tr.appendChild(cell(lastSeenCell(c)));
+    addCell(tr, 'colName', nameCell(c), 'cell-user');
+    addCell(tr, 'colStatus', statusPill(c));
+    addCell(tr, 'colAssignedIp', assignedIpCell(c));
+    addCell(tr, 'colConnectedIp', connectedIpCell(c));
+    addCell(tr, 'colLastRealIp', lastRealIpCell(c));
+    addCell(tr, 'colTraffic', trafficCell(c));
+    addCell(tr, 'colCreated', fmtDateShort(c.createdAt));
+    addCell(tr, 'colExpires', c.status === 'revoked' ? '–' : fmtDateShort(c.expiresAt));
+    addCell(tr, 'colLastSeen', lastSeenCell(c));
     tr.appendChild(actionCell(c));
     body.appendChild(tr);
   }
 }
 
-function cell(html) {
+function addCell(tr, labelKey, content, className = '') {
   const td = document.createElement('td');
-  if (html instanceof Node) td.appendChild(html);
-  else td.innerHTML = html;
+  if (className) td.className = className;
+  td.setAttribute('data-label', t(labelKey));
+  if (content instanceof Node) td.appendChild(content);
+  else td.innerHTML = content;
+  tr.appendChild(td);
   return td;
 }
 
@@ -316,28 +304,16 @@ function nameCell(c) {
   const div = document.createElement('div');
   div.className = 'user-cell';
 
-  const avatar = document.createElement('div');
-  avatar.className = 'user-avatar';
-  avatar.style.background = getAvatarGradient(c.name);
-  avatar.textContent = c.name.slice(0, 2);
-  div.appendChild(avatar);
-
-  const info = document.createElement('div');
-  info.className = 'user-info';
+  const dot = document.createElement('span');
+  dot.className = c.online ? 'pulse-dot' : 'dot-offline';
+  dot.title = c.online ? t('statusOnline') : t('statusOffline');
+  div.appendChild(dot);
 
   const nameSpan = document.createElement('span');
   nameSpan.className = 'user-name';
   nameSpan.textContent = c.name;
-  info.appendChild(nameSpan);
+  div.appendChild(nameSpan);
 
-  if (c.online) {
-    const live = document.createElement('span');
-    live.className = 'pulse-dot';
-    live.title = t('statusOnline');
-    info.appendChild(live);
-  }
-
-  div.appendChild(info);
   return div;
 }
 
@@ -405,12 +381,161 @@ function statusPill(c) {
   return `<span class="status-pill status-${c.status}"><span class="dot">●</span> ${escapeHtml(label)}</span>`;
 }
 
-/* ---------- Actions Cell ---------- */
+/* ---------- Dropdown Action Menu System ---------- */
+let activeDropdownMenu = null;
+
+function closeActiveDropdown() {
+  if (activeDropdownMenu) {
+    activeDropdownMenu.remove();
+    activeDropdownMenu = null;
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown-menu') && !e.target.closest('.btn-more-actions')) {
+    closeActiveDropdown();
+  }
+});
+window.addEventListener('scroll', closeActiveDropdown, true);
+window.addEventListener('resize', closeActiveDropdown);
+
+function createDropdownItem(iconSvg, label, onClick, isDanger = false, isWarn = false, isSuccess = false) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'dropdown-item' + (isDanger ? ' danger' : '') + (isWarn ? ' warn' : '') + (isSuccess ? ' success' : '');
+  btn.innerHTML = `${iconSvg} <span>${escapeHtml(label)}</span>`;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeActiveDropdown();
+    onClick();
+  });
+  return btn;
+}
+
+function openDropdownMenu(c, moreBtn) {
+  if (activeDropdownMenu && activeDropdownMenu._triggerBtn === moreBtn) {
+    closeActiveDropdown();
+    return;
+  }
+  closeActiveDropdown();
+
+  const menu = document.createElement('div');
+  menu.className = 'dropdown-menu';
+  menu._triggerBtn = moreBtn;
+
+  // 1. Details
+  menu.appendChild(
+    createDropdownItem(
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+      t('actionDetails'),
+      () => showDetails(c.name),
+    ),
+  );
+
+  const isLiveActive = c.status === 'active' || c.status === 'paused' || c.paused;
+  if (isLiveActive) {
+    // 2. Pause / Resume
+    if (c.paused || c.status === 'paused') {
+      menu.appendChild(
+        createDropdownItem(
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>',
+          t('actionResume'),
+          () => doResume(c.name),
+          false,
+          false,
+          true,
+        ),
+      );
+    } else {
+      menu.appendChild(
+        createDropdownItem(
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>',
+          t('actionPause'),
+          () => doPause(c.name),
+          false,
+          true,
+          false,
+        ),
+      );
+    }
+
+    // 3. Renew
+    menu.appendChild(
+      createDropdownItem(
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+        t('actionRenew'),
+        () => openRenewModal(c),
+      ),
+    );
+
+    // 4. Set IP
+    menu.appendChild(
+      createDropdownItem(
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>',
+        t('actionSetIp'),
+        () => openIpModal(c),
+      ),
+    );
+
+    // 5. Revoke
+    menu.appendChild(
+      createDropdownItem(
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+        t('actionRevoke'),
+        () => doRevoke(c.name),
+        true,
+      ),
+    );
+  } else if (c.status === 'revoked') {
+    // Archive
+    menu.appendChild(
+      createDropdownItem(
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+        t('actionArchive'),
+        () => doArchive(c.name),
+      ),
+    );
+  }
+
+  // Divider
+  const div = document.createElement('div');
+  div.className = 'dropdown-divider';
+  menu.appendChild(div);
+
+  // Delete
+  menu.appendChild(
+    createDropdownItem(
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+      t('actionDelete'),
+      () => doDelete(c.name),
+      true,
+    ),
+  );
+
+  document.body.appendChild(menu);
+
+  // Position calculation relative to moreBtn
+  const rect = moreBtn.getBoundingClientRect();
+  const isRtl = document.documentElement.dir === 'rtl';
+  menu.style.top = rect.bottom + 4 + 'px';
+  if (isRtl) {
+    menu.style.left = Math.max(8, rect.left) + 'px';
+    menu.style.right = 'auto';
+  } else {
+    menu.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+    menu.style.left = 'auto';
+  }
+
+  activeDropdownMenu = menu;
+}
+
+/* ---------- Actions Cell (Compact 3 buttons) ---------- */
 function actionCell(c) {
   const td = document.createElement('td');
   td.className = 'actions';
+  td.setAttribute('data-label', t('colActions'));
 
-  // 1. Download
+  // 1. Quick Action: Download
   const dl = document.createElement('button');
   dl.type = 'button';
   dl.className = 'btn-action btn-action-primary';
@@ -423,19 +548,7 @@ function actionCell(c) {
   dl.addEventListener('click', () => downloadConfig(c.name));
   td.appendChild(dl);
 
-  // 2. Details
-  const details = document.createElement('button');
-  details.type = 'button';
-  details.className = 'btn-action';
-  details.title = t('actionDetailsTitle');
-  details.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-    <span>${escapeHtml(t('actionDetails'))}</span>
-  `;
-  details.addEventListener('click', () => showDetails(c.name));
-  td.appendChild(details);
-
-  // 3. History
+  // 2. Quick Action: History
   const histBtn = document.createElement('button');
   histBtn.type = 'button';
   histBtn.className = 'btn-action';
@@ -447,89 +560,17 @@ function actionCell(c) {
   histBtn.addEventListener('click', () => showHistory(c.name));
   td.appendChild(histBtn);
 
-  // 4. Live Active Controls (Pause/Resume, Renew, Set IP, Revoke)
-  const isLiveActive = c.status === 'active' || c.status === 'paused' || c.paused;
-  if (isLiveActive) {
-    if (c.paused || c.status === 'paused') {
-      const actBtn = document.createElement('button');
-      actBtn.type = 'button';
-      actBtn.className = 'btn-action btn-action-success';
-      actBtn.title = t('actionResumeTitle');
-      actBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-        <span>${escapeHtml(t('actionResume'))}</span>
-      `;
-      actBtn.addEventListener('click', () => doResume(c.name));
-      td.appendChild(actBtn);
-    } else {
-      const pauseBtn = document.createElement('button');
-      pauseBtn.type = 'button';
-      pauseBtn.className = 'btn-action btn-action-warn';
-      pauseBtn.title = t('actionPauseTitle');
-      pauseBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>
-        <span>${escapeHtml(t('actionPause'))}</span>
-      `;
-      pauseBtn.addEventListener('click', () => doPause(c.name));
-      td.appendChild(pauseBtn);
-    }
-
-    const renewBtn = document.createElement('button');
-    renewBtn.type = 'button';
-    renewBtn.className = 'btn-action';
-    renewBtn.title = t('actionRenewTitle');
-    renewBtn.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      <span>${escapeHtml(t('actionRenew'))}</span>
-    `;
-    renewBtn.addEventListener('click', () => openRenewModal(c));
-    td.appendChild(renewBtn);
-
-    const ipBtn = document.createElement('button');
-    ipBtn.type = 'button';
-    ipBtn.className = 'btn-action';
-    ipBtn.title = t('actionSetIpTitle');
-    ipBtn.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-      <span>${escapeHtml(t('actionSetIp'))}</span>
-    `;
-    ipBtn.addEventListener('click', () => openIpModal(c));
-    td.appendChild(ipBtn);
-
-    const rv = document.createElement('button');
-    rv.type = 'button';
-    rv.className = 'btn-action btn-action-danger';
-    rv.title = t('actionRevokeTitle');
-    rv.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-      <span>${escapeHtml(t('actionRevoke'))}</span>
-    `;
-    rv.addEventListener('click', () => doRevoke(c.name));
-    td.appendChild(rv);
-  } else if (c.status === 'revoked') {
-    const ar = document.createElement('button');
-    ar.type = 'button';
-    ar.className = 'btn-action';
-    ar.title = t('actionArchiveTitle');
-    ar.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-      <span>${escapeHtml(t('actionArchive'))}</span>
-    `;
-    ar.addEventListener('click', () => doArchive(c.name));
-    td.appendChild(ar);
-  }
-
-  // 5. Delete
-  const del = document.createElement('button');
-  del.type = 'button';
-  del.className = 'btn-action btn-action-danger';
-  del.title = t('actionDeleteTitle');
-  del.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-    <span>${escapeHtml(t('actionDelete'))}</span>
-  `;
-  del.addEventListener('click', () => doDelete(c.name));
-  td.appendChild(del);
+  // 3. More Actions Dropdown Trigger (•••)
+  const moreBtn = document.createElement('button');
+  moreBtn.type = 'button';
+  moreBtn.className = 'btn-action btn-more-actions';
+  moreBtn.title = t('actionMoreTitle');
+  moreBtn.innerHTML = '•••';
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openDropdownMenu(c, moreBtn);
+  });
+  td.appendChild(moreBtn);
 
   return td;
 }
