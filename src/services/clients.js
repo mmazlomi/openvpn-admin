@@ -24,15 +24,25 @@ export async function listClients() {
   }
   const online = new Map(status.clients.map((c) => [c.name, c]));
   const trafficMap = connectionsDb.getAllTrafficStats();
+  const totalTraffic = connectionsDb.getTotalServerTraffic();
 
   return {
     mgmtAvailable: status.available,
+    totalTraffic,
     clients: rows.map((r) => {
       const live = online.get(r.name);
-      if (live && live.connectedSince) {
-        // Opportunistically refresh last_seen.
-        const iso = new Date((live.connectedSinceEpoch || 0) * 1000).toISOString();
-        if (r.status === 'active') clientsDb.setLastSeen(r.name, iso);
+      if (live) {
+        // Opportunistically refresh last_seen using last packet/request if available, or connection time
+        let ts = null;
+        if (live.lastRefEpoch) {
+          ts = new Date(live.lastRefEpoch * 1000).toISOString();
+        } else if (live.connectedSinceEpoch) {
+          ts = new Date(live.connectedSinceEpoch * 1000).toISOString();
+        }
+        if (ts && r.status === 'active') {
+          clientsDb.setLastSeen(r.name, ts);
+          r.last_seen = ts;
+        }
       }
       const traffic = trafficMap.get(r.name) || {
         bytesReceived: 0,
@@ -49,6 +59,10 @@ export async function listClients() {
         lastRealIp = m ? m[1] : realAddr;
       }
 
+      const lastRequest = live?.lastRefEpoch
+        ? new Date(live.lastRefEpoch * 1000).toISOString()
+        : (r.last_seen || null);
+
       return {
         name: r.name,
         status: r.paused ? 'paused' : r.status,
@@ -58,7 +72,8 @@ export async function listClients() {
         revokedAt: r.revoked_at,
         archivedAt: r.archived_at,
         expiresAt: r.expires_at,
-        lastSeen: live ? new Date().toISOString() : r.last_seen,
+        lastSeen: live ? (lastRequest || new Date().toISOString()) : r.last_seen,
+        lastRequest,
         notes: r.notes,
         staticIp: r.static_ip || null,
         online: !!live,
@@ -76,6 +91,8 @@ export async function listClients() {
               bytesReceived: live.bytesReceived,
               bytesSent: live.bytesSent,
               connectedSince: live.connectedSince,
+              lastRef: live.lastRef,
+              lastRefEpoch: live.lastRefEpoch,
             }
           : null,
       };

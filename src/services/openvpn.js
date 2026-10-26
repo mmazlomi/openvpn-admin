@@ -52,21 +52,42 @@ export function getStatus() {
 
 export function parseStatus3(text) {
   const clients = [];
+  const lastRefs = new Map();
+
   for (const line of text.split(/\r?\n/)) {
     const f = line.split('\t');
-    if (f[0] !== 'CLIENT_LIST') continue;
-    // CLIENT_LIST, CN, Real Address, Virtual Address, Virtual IPv6,
-    // Bytes Received, Bytes Sent, Connected Since, Connected Since (t), Username, ...
-    clients.push({
-      name: f[1],
-      realAddress: f[2],
-      virtualAddress: f[3],
-      bytesReceived: Number(f[5]) || 0,
-      bytesSent: Number(f[6]) || 0,
-      connectedSince: f[7] || null,
-      connectedSinceEpoch: Number(f[8]) || null,
-    });
+    if (f[0] === 'ROUTING_TABLE') {
+      // ROUTING_TABLE, Virtual Address, Common Name, Real Address, Last Ref, Last Ref (time_t)
+      const name = f[2];
+      const lastRef = f[4] || null;
+      const lastRefEpoch = Number(f[5]) || null;
+      if (name && lastRefEpoch) {
+        const cur = lastRefs.get(name);
+        if (!cur || lastRefEpoch > cur.lastRefEpoch) {
+          lastRefs.set(name, { lastRef, lastRefEpoch });
+        }
+      }
+    } else if (f[0] === 'CLIENT_LIST') {
+      // CLIENT_LIST, CN, Real Address, Virtual Address, Virtual IPv6,
+      // Bytes Received, Bytes Sent, Connected Since, Connected Since (t), Username, ...
+      clients.push({
+        name: f[1],
+        realAddress: f[2],
+        virtualAddress: f[3],
+        bytesReceived: Number(f[5]) || 0,
+        bytesSent: Number(f[6]) || 0,
+        connectedSince: f[7] || null,
+        connectedSinceEpoch: Number(f[8]) || null,
+      });
+    }
   }
+
+  for (const c of clients) {
+    const ref = lastRefs.get(c.name);
+    c.lastRef = ref?.lastRef || null;
+    c.lastRefEpoch = ref?.lastRefEpoch || null;
+  }
+
   return { available: true, clients };
 }
 

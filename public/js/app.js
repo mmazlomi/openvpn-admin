@@ -37,6 +37,18 @@ const fmtDateShort = (iso) => {
   return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
+function formatTimeAgo(iso) {
+  if (!iso) return '–';
+  const diffSec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diffSec < 0 || diffSec < 15) return t('timeJustNow');
+  if (diffSec < 60) return t('timeSecondsAgo', { s: diffSec });
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return t('timeMinutesAgo', { m: diffMin });
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return t('timeHoursAgo', { h: diffHour });
+  return fmtDateShort(iso);
+}
+
 function formatBytes(b) {
   const bytes = Number(b) || 0;
   if (bytes < 1024) return bytes + ' B';
@@ -208,6 +220,15 @@ async function loadClients() {
     $('stat-revoked').textContent = cachedClients.filter((c) => c.status === 'revoked').length;
     $('stat-online').textContent = cachedClients.filter((c) => c.online).length;
 
+    // Server-wide All Traffic
+    const totalAll = data.totalTraffic?.totalBytes || cachedClients.reduce((acc, c) => acc + (c.totalBytes || 0), 0);
+    const sentAll = data.totalTraffic?.bytesSent || cachedClients.reduce((acc, c) => acc + (c.bytesSent || 0), 0);
+    const recvAll = data.totalTraffic?.bytesReceived || cachedClients.reduce((acc, c) => acc + (c.bytesReceived || 0), 0);
+    const statTraffic = $('stat-traffic');
+    if (statTraffic) statTraffic.textContent = formatBytes(totalAll);
+    const statSplit = $('stat-traffic-split');
+    if (statSplit) statSplit.textContent = `↓ ${formatBytes(sentAll)} · ↑ ${formatBytes(recvAll)}`;
+
     renderClients();
   } catch (err) {
     $('list-error').textContent = err.message;
@@ -282,9 +303,9 @@ function renderClients() {
     addCell(tr, 'colConnectedIp', connectedIpCell(c));
     addCell(tr, 'colLastRealIp', lastRealIpCell(c));
     addCell(tr, 'colTraffic', trafficCell(c));
+    addCell(tr, 'colLastRequest', lastRequestCell(c));
     addCell(tr, 'colCreated', fmtDateShort(c.createdAt));
     addCell(tr, 'colExpires', c.status === 'revoked' ? '–' : fmtDateShort(c.expiresAt));
-    addCell(tr, 'colLastSeen', lastSeenCell(c));
     tr.appendChild(actionCell(c));
     body.appendChild(tr);
   }
@@ -359,6 +380,17 @@ function trafficCell(c) {
       </div>
     </div>
   `;
+}
+
+function lastRequestCell(c) {
+  const reqTime = c.lastRequest || c.lastSeen;
+  if (c.online && reqTime) {
+    return `<span class="chip chip-online" title="${escapeHtml(fmtDate(reqTime))}"><span class="pulse-dot"></span> ${escapeHtml(formatTimeAgo(reqTime))}</span>`;
+  }
+  if (reqTime) {
+    return `<span class="chip chip-real" title="${escapeHtml(fmtDate(reqTime))}">${escapeHtml(formatTimeAgo(reqTime))}</span>`;
+  }
+  return '<span class="dim">–</span>';
 }
 
 function lastSeenCell(c) {
@@ -661,6 +693,7 @@ async function showDetails(name) {
         t('colTraffic'),
         formatBytes(c.totalBytes) + ' (' + t('trafficDownload') + ': ' + formatBytes(c.bytesSent) + ' / ' + t('trafficUpload') + ': ' + formatBytes(c.bytesReceived) + ')',
       ],
+      [t('colLastRequest'), c.lastRequest ? fmtDate(c.lastRequest) + ' (' + formatTimeAgo(c.lastRequest) + ')' : '–'],
       [t('historyCardSessions'), c.connectionCount ? String(c.connectionCount) : '–'],
       ['Certificate Serial', c.certificateSerial || '–'],
       [t('colCreated'), fmtDate(c.createdAt)],

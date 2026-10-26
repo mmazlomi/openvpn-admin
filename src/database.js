@@ -321,6 +321,22 @@ export const connections = {
     return map;
   },
 
+  getTotalServerTraffic() {
+    const row = getDb().prepare(`
+      SELECT
+        COALESCE(SUM(bytes_received), 0) AS totalReceived,
+        COALESCE(SUM(bytes_sent), 0) AS totalSent
+      FROM connection_history
+    `).get();
+    const received = Number(row?.totalReceived) || 0;
+    const sent = Number(row?.totalSent) || 0;
+    return {
+      bytesReceived: received,
+      bytesSent: sent,
+      totalBytes: received + sent,
+    };
+  },
+
   getClientTrafficSummary(clientName) {
     const row = getDb().prepare(`
       SELECT

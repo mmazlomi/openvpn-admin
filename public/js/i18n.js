@@ -28,6 +28,7 @@ const I18N = {
     statActive: 'کاربران فعال',
     statRevoked: 'لغو شده',
     statOnline: 'کاربران آنلاین',
+    statAllTraffic: 'کل مصرف ترافیک',
 
     // Toolbar
     usersTitle: 'کاربران',
@@ -49,10 +50,17 @@ const I18N = {
     colConnectedIp: 'IP متصل فعلی',
     colLastRealIp: 'آخرین IP واقعی',
     colTraffic: 'مصرف ترافیک',
+    colLastRequest: 'آخرین درخواست / فعالیت',
     colCreated: 'تاریخ ایجاد',
     colExpires: 'تاریخ انقضا',
     colLastSeen: 'آخرین اتصال',
     colActions: 'عملیات',
+
+    // Relative Time
+    timeJustNow: 'هم‌اکنون فعال',
+    timeSecondsAgo: '{s} ثانیه پیش',
+    timeMinutesAgo: '{m} دقیقه پیش',
+    timeHoursAgo: '{h} ساعت پیش',
 
     // Status Badges
     statusActive: 'فعال',
@@ -203,6 +211,7 @@ const I18N = {
     statActive: 'Active Users',
     statRevoked: 'Revoked Users',
     statOnline: 'Online Users',
+    statAllTraffic: 'All Traffic',
 
     // Toolbar
     usersTitle: 'Users',
@@ -224,10 +233,17 @@ const I18N = {
     colConnectedIp: 'Connected VPN IP',
     colLastRealIp: 'Last Real IP',
     colTraffic: 'Traffic Usage',
+    colLastRequest: 'Last Request / Activity',
     colCreated: 'Created',
     colExpires: 'Expires',
     colLastSeen: 'Last Seen',
     colActions: 'Actions',
+
+    // Relative Time
+    timeJustNow: 'Active now',
+    timeSecondsAgo: '{s}s ago',
+    timeMinutesAgo: '{m}m ago',
+    timeHoursAgo: '{h}h ago',
 
     // Status Badges
     statusActive: 'Active',

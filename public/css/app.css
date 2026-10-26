@@ -405,6 +405,11 @@ a:hover {
   color: var(--info);
   border: 1px solid var(--info-border);
 }
+.card-icon-traffic {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border: 1px solid var(--warn-border);
+}
 
 /* ==========================================================================
    Panels & Sections
