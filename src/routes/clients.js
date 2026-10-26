@@ -195,8 +195,8 @@ router.post('/:name/activate', async (req, res, next) => {
 router.get('/:name/connections', async (req, res, next) => {
   try {
     const limit = Number.parseInt(req.query.limit, 10) || 50;
-    const connections = await getClientConnections(req.params.name, limit);
-    res.json({ client: req.params.name, connections });
+    const { connections, summary } = await getClientConnections(req.params.name, limit);
+    res.json({ client: req.params.name, connections, summary });
   } catch (err) {
     next(err);
   }

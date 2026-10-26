@@ -277,6 +277,84 @@ export const connections = {
       )
       .all(clientName, Math.min(Math.max(limit, 1), 100));
   },
+
+  getAllTrafficStats() {
+    const rows = getDb().prepare(`
+      SELECT
+        c.name AS clientName,
+        COALESCE(stats.total_bytes_received, 0) AS bytesReceived,
+        COALESCE(stats.total_bytes_sent, 0) AS bytesSent,
+        COALESCE(stats.total_connections, 0) AS connectionCount,
+        latest.real_address AS lastRealAddress
+      FROM clients c
+      LEFT JOIN (
+        SELECT
+          client_name,
+          SUM(bytes_received) AS total_bytes_received,
+          SUM(bytes_sent) AS total_bytes_sent,
+          COUNT(id) AS total_connections
+        FROM connection_history
+        GROUP BY client_name
+      ) stats ON stats.client_name = c.name
+      LEFT JOIN (
+        SELECT h.client_name, h.real_address
+        FROM connection_history h
+        INNER JOIN (
+          SELECT client_name, MAX(id) AS max_id
+          FROM connection_history
+          WHERE real_address IS NOT NULL AND real_address != ''
+          GROUP BY client_name
+        ) latest_id ON h.id = latest_id.max_id
+      ) latest ON latest.client_name = c.name
+    `).all();
+
+    const map = new Map();
+    for (const r of rows) {
+      map.set(r.clientName, {
+        bytesReceived: Number(r.bytesReceived) || 0,
+        bytesSent: Number(r.bytesSent) || 0,
+        totalBytes: (Number(r.bytesReceived) || 0) + (Number(r.bytesSent) || 0),
+        connectionCount: Number(r.connectionCount) || 0,
+        lastRealAddress: r.lastRealAddress || null,
+      });
+    }
+    return map;
+  },
+
+  getClientTrafficSummary(clientName) {
+    const row = getDb().prepare(`
+      SELECT
+        COALESCE(SUM(bytes_received), 0) AS bytesReceived,
+        COALESCE(SUM(bytes_sent), 0) AS bytesSent,
+        COUNT(id) AS connectionCount,
+        (
+          SELECT real_address FROM connection_history
+          WHERE client_name = ? AND real_address IS NOT NULL AND real_address != ''
+          ORDER BY id DESC LIMIT 1
+        ) AS lastRealAddress
+      FROM connection_history
+      WHERE client_name = ?
+    `).get(clientName, clientName);
+
+    const addr = row?.lastRealAddress || null;
+    let lastRealIp = null;
+    if (addr) {
+      const m = addr.match(/^\[?([a-fA-F0-9:.]+)\]?:[0-9]+$/);
+      lastRealIp = m ? m[1] : addr;
+    }
+
+    if (!row) {
+      return { bytesReceived: 0, bytesSent: 0, totalBytes: 0, connectionCount: 0, lastRealAddress: null, lastRealIp: null };
+    }
+    return {
+      bytesReceived: Number(row.bytesReceived) || 0,
+      bytesSent: Number(row.bytesSent) || 0,
+      totalBytes: (Number(row.bytesReceived) || 0) + (Number(row.bytesSent) || 0),
+      connectionCount: Number(row.connectionCount) || 0,
+      lastRealAddress: addr,
+      lastRealIp,
+    };
+  },
 };
 
 export function closeDb() {

@@ -46,10 +46,12 @@ export async function getRecentConnections(limit = 10) {
 }
 
 /**
- * Get connection history for a specific user.
+ * Get connection history for a specific user, along with traffic summary.
  */
 export async function getClientConnections(rawName, limit = 50) {
   const name = validateClientName(rawName);
   await syncConnectionHistory();
-  return connectionsDb.getForClient(name, limit);
+  const connections = connectionsDb.getForClient(name, limit);
+  const summary = connectionsDb.getClientTrafficSummary(name);
+  return { connections, summary };
 }

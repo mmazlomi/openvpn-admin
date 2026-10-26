@@ -117,7 +117,7 @@ button:disabled { opacity: .6; cursor: progress; }
 .badge.ok { background: rgba(22, 163, 74, .25); }
 .badge.bad { background: rgba(220, 38, 38, .3); }
 
-.container { max-width: 1080px; margin: 1.5rem auto; padding: 0 1rem; }
+.container { max-width: 1180px; margin: 1.5rem auto; padding: 0 1rem; }
 
 .cards {
   display: grid;
@@ -182,6 +182,9 @@ code, .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monosp
 .ip-connected { color: var(--success); font-weight: 600; display: inline-flex; align-items: center; gap: .3rem; }
 .dot-green { color: var(--success); font-size: .8rem; line-height: 1; }
 .ip-assigned { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.small-text { font-size: .78rem; line-height: 1.25; }
+.traffic-cell { display: flex; flex-direction: column; gap: .15rem; }
 
 /* ---------- modal ---------- */
 .modal-backdrop {

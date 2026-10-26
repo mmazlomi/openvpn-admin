@@ -3,16 +3,18 @@
  * Combines the SQLite metadata store, the EasyRSA layer and live status.
  */
 import config from '../config.js';
-import { clients as clientsDb, audit } from '../database.js';
+import { clients as clientsDb, connections as connectionsDb, audit } from '../database.js';
 import { buildClient, revokeClient, readIndex } from './easyrsa.js';
 import { helper } from './helper.js';
 import { getStatus, killClient } from './openvpn.js';
+import { syncConnectionHistory } from './connections.js';
 import { validateClientName, validateNotes, validateStaticIp, parseCidr, validateDays } from '../utils/validation.js';
 import { ConflictError, NotFoundError, PkiError } from '../utils/errors.js';
 import logger from '../utils/logger.js';
 
-/** List clients merged with live connection info. */
+/** List clients merged with live connection info and historical traffic. */
 export async function listClients() {
+  await syncConnectionHistory();
   const rows = clientsDb.all();
   let status = { available: false, clients: [] };
   try {
@@ -21,6 +23,7 @@ export async function listClients() {
     /* status is best-effort */
   }
   const online = new Map(status.clients.map((c) => [c.name, c]));
+  const trafficMap = connectionsDb.getAllTrafficStats();
 
   return {
     mgmtAvailable: status.available,
@@ -31,6 +34,21 @@ export async function listClients() {
         const iso = new Date((live.connectedSinceEpoch || 0) * 1000).toISOString();
         if (r.status === 'active') clientsDb.setLastSeen(r.name, iso);
       }
+      const traffic = trafficMap.get(r.name) || {
+        bytesReceived: 0,
+        bytesSent: 0,
+        totalBytes: 0,
+        connectionCount: 0,
+        lastRealAddress: null,
+      };
+
+      const realAddr = live?.realAddress || traffic.lastRealAddress || null;
+      let lastRealIp = null;
+      if (realAddr) {
+        const m = realAddr.match(/^\[?([a-fA-F0-9:.]+)\]?:[0-9]+$/);
+        lastRealIp = m ? m[1] : realAddr;
+      }
+
       return {
         name: r.name,
         status: r.paused ? 'paused' : r.status,
@@ -45,6 +63,12 @@ export async function listClients() {
         staticIp: r.static_ip || null,
         online: !!live,
         connectedIp: live ? live.virtualAddress : null,
+        lastRealAddress: realAddr,
+        lastRealIp,
+        bytesReceived: traffic.bytesReceived,
+        bytesSent: traffic.bytesSent,
+        totalBytes: traffic.totalBytes,
+        connectionCount: traffic.connectionCount,
         connection: live
           ? {
               realAddress: live.realAddress,

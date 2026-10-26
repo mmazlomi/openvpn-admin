@@ -285,7 +285,7 @@ test('static IP assignment and duplicate checking', async () => {
   assert.equal(resumeRes.json.client.status, 'active');
   assert.equal(resumeRes.json.client.paused, false);
 
-  // 12c. Test connection history endpoints
+  // 12c. Test connection history and traffic endpoints
   const recentConn = await request(server, 'GET', '/api/connections/recent?limit=10', { cookie });
   assert.equal(recentConn.status, 200);
   assert.ok(Array.isArray(recentConn.json.connections));
@@ -294,6 +294,17 @@ test('static IP assignment and duplicate checking', async () => {
   assert.equal(clientConn.status, 200);
   assert.equal(clientConn.json.client, 'static-user2');
   assert.ok(Array.isArray(clientConn.json.connections));
+  assert.ok(clientConn.json.summary);
+  assert.equal(typeof clientConn.json.summary.bytesReceived, 'number');
+  assert.equal(typeof clientConn.json.summary.totalBytes, 'number');
+
+  const clientsListRes = await request(server, 'GET', '/api/clients', { cookie });
+  assert.equal(clientsListRes.status, 200);
+  const foundUser2 = clientsListRes.json.clients.find((c) => c.name === 'static-user2');
+  assert.ok(foundUser2);
+  assert.equal(typeof foundUser2.bytesReceived, 'number');
+  assert.equal(typeof foundUser2.totalBytes, 'number');
+  assert.ok('lastRealIp' in foundUser2);
 
   // 13. Delete client static-user1 (revoked) and static-user2 (active)
   const del1 = await request(server, 'DELETE', '/api/clients/static-user1', {

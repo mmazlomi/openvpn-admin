@@ -47,7 +47,7 @@ async function init() {
     return;
   }
   wireEvents();
-  await Promise.all([loadStatus(), loadClients(), loadRecentConnections(), loadAudit()]);
+  await Promise.all([loadStatus(), loadClients(), loadAudit()]);
 }
 
 function wireEvents() {
@@ -64,7 +64,6 @@ function wireEvents() {
   $('renew-days-select').addEventListener('change', (e) => {
     $('renew-custom-group').style.display = e.target.value === 'custom' ? 'block' : 'none';
   });
-  $('refresh-conn-btn').addEventListener('click', loadRecentConnections);
   $('details-view-history-btn').addEventListener('click', () => {
     $('details-modal').hidden = true;
     showHistory($('details-modal').dataset.clientName);
@@ -111,7 +110,7 @@ async function loadClients() {
     $('stat-revoked').textContent = list.filter((c) => c.status === 'revoked').length;
 
     if (!list.length) {
-      body.innerHTML = '<tr><td colspan="8" class="muted center">هنوز کاربری وجود ندارد</td></tr>';
+      body.innerHTML = '<tr><td colspan="10" class="muted center">هنوز کاربری وجود ندارد</td></tr>';
       return;
     }
     body.innerHTML = '';
@@ -121,6 +120,8 @@ async function loadClients() {
       tr.appendChild(cell(statusPill(c)));
       tr.appendChild(cell(assignedIpCell(c)));
       tr.appendChild(cell(connectedIpCell(c)));
+      tr.appendChild(cell(lastRealIpCell(c)));
+      tr.appendChild(cell(trafficCell(c)));
       tr.appendChild(cell(fmtDateShort(c.createdAt)));
       tr.appendChild(cell(c.status === 'revoked' ? '–' : fmtDateShort(c.expiresAt)));
       tr.appendChild(cell(c.online ? '<span class="dot-online">آنلاین</span>' : fmtDateShort(c.lastSeen)));
@@ -137,7 +138,7 @@ async function loadClients() {
 function cell(html) { const td = document.createElement('td'); if (html instanceof Node) td.appendChild(html); else td.innerHTML = html; return td; }
 function nameCell(c) {
   const span = document.createElement('span');
-  span.className = 'mono';
+  span.className = 'mono font-bold';
   span.textContent = c.name;
   return span;
 }
@@ -155,6 +156,30 @@ function connectedIpCell(c) {
            '<span class="dot-green">●</span> ' + escapeHtml(ip) + '</span>';
   }
   return '<span class="muted">–</span>';
+}
+function lastRealIpCell(c) {
+  if (c.online && (c.connection?.realAddress || c.lastRealAddress)) {
+    const addr = c.connection?.realAddress || c.lastRealAddress;
+    const ip = c.lastRealIp || addr.replace(/:[0-9]+$/, '');
+    return '<span class="mono ip-connected" title="آدرس آنلاین: ' + escapeHtml(addr) + '">' +
+           '<span class="dot-green">●</span> ' + escapeHtml(ip) + '</span>';
+  }
+  if (c.lastRealIp) {
+    return '<span class="mono" title="' + escapeHtml(c.lastRealAddress || '') + '">' +
+           escapeHtml(c.lastRealIp) + '</span>';
+  }
+  return '<span class="muted">–</span>';
+}
+function trafficCell(c) {
+  const total = c.totalBytes || 0;
+  if (!total) return '<span class="muted">۰ B</span>';
+  const sent = c.bytesSent || 0;
+  const recv = c.bytesReceived || 0;
+  return '<div class="traffic-cell">' +
+         '<span class="mono font-bold">' + formatBytes(total) + '</span>' +
+         '<div class="muted small-text" title="دانلود: ' + formatBytes(sent) + ' | آپلود: ' + formatBytes(recv) + '">' +
+         '↓ ' + formatBytes(sent) + ' · ↑ ' + formatBytes(recv) +
+         '</div></div>';
 }
 function statusPill(c) {
   if (c.status === 'paused' || c.paused) {
@@ -312,6 +337,9 @@ async function showDetails(name) {
       ['IP متصل فعلی (VPN)', c.online && (c.connectedIp || c.connection?.virtualAddress)
         ? (c.connectedIp || c.connection.virtualAddress) + ' (آنلاین)'
         : 'متصل نیست (آفلاین)'],
+      ['آخرین IP واقعی', c.lastRealAddress || '–'],
+      ['کل ترافیک مصرفی', formatBytes(c.totalBytes) + ' (دانلود: ' + formatBytes(c.bytesSent) + ' / آپلود: ' + formatBytes(c.bytesReceived) + ')'],
+      ['تعداد دفعات اتصال', c.connectionCount ? String(c.connectionCount) : '–'],
       ['سریال گواهی', c.certificateSerial || '–'],
       ['ایجاد', fmtDate(c.createdAt)],
       ['انقضا', fmtDate(c.expiresAt)],
@@ -320,8 +348,8 @@ async function showDetails(name) {
       ['آخرین اتصال', c.online ? 'هم‌اکنون آنلاین' : fmtDate(c.lastSeen)],
     ];
     if (c.connection) {
-      rows.push(['آدرس اینترنتی (Real IP)', c.connection.realAddress]);
-      rows.push(['دریافت/ارسال', (c.connection.bytesReceived + ' / ' + c.connection.bytesSent) + ' بایت']);
+      rows.push(['نشست فعلی - آدرس اینترنتی', c.connection.realAddress]);
+      rows.push(['نشست فعلی - دریافت/ارسال', (c.connection.bytesReceived + ' / ' + c.connection.bytesSent) + ' بایت']);
     }
     if (c.notes) rows.push(['یادداشت', c.notes]);
     $('details-body').innerHTML = rows
@@ -519,51 +547,32 @@ function formatBytes(b) {
   return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }
 
-async function loadRecentConnections() {
-  try {
-    const { connections: list } = await api('/api/connections/recent?limit=10');
-    const body = $('recent-connections-body');
-    if (!body) return;
-    if (!list || !list.length) {
-      body.innerHTML = '<tr><td colspan="7" class="muted center">هنوز سابقه‌ای از اتصال ثبت نشده است</td></tr>';
-      return;
-    }
-    body.innerHTML = list
-      .map((c) => {
-        const isConn = c.status === 'connected';
-        const statusHtml = isConn
-          ? '<span class="status-pill status-active">آنلاین</span>'
-          : '<span class="status-pill status-archived">قطع شده</span>';
-        const discHtml = c.disconnectedAt
-          ? fmtDate(c.disconnectedAt)
-          : (isConn ? '<span class="dot-online">در حال اتصال</span>' : '–');
-        const trafficHtml = formatBytes(c.bytesReceived) + ' / ' + formatBytes(c.bytesSent);
-        return (
-          '<tr>' +
-          '<td class="mono font-bold">' + escapeHtml(c.clientName) + '</td>' +
-          '<td>' + statusHtml + '</td>' +
-          '<td><span class="mono ip-connected">' + escapeHtml(c.virtualIp || '–') + '</span></td>' +
-          '<td><span class="mono muted">' + escapeHtml(c.realAddress || '–') + '</span></td>' +
-          '<td>' + fmtDate(c.connectedAt) + '</td>' +
-          '<td>' + discHtml + '</td>' +
-          '<td class="mono">' + trafficHtml + '</td>' +
-          '</tr>'
-        );
-      })
-      .join('');
-  } catch {
-    /* non-critical */
-  }
-}
-
 async function showHistory(name) {
   $('history-client-label').textContent = name;
+  $('history-total-traffic').textContent = '–';
+  $('history-traffic-detail').textContent = '–';
+  $('history-last-real-ip').textContent = '–';
+  $('history-real-port').textContent = '–';
+  $('history-session-count').textContent = '–';
   $('history-body').innerHTML = '<tr><td colspan="6" class="muted center">در حال بارگذاری…</td></tr>';
   $('history-modal').hidden = false;
+
   try {
-    const { connections: list } = await api('/api/clients/' + encodeURIComponent(name) + '/connections?limit=50');
+    const data = await api('/api/clients/' + encodeURIComponent(name) + '/connections?limit=50');
+    const list = data.connections || [];
+    const summary = data.summary || {};
+
+    const totalTraffic = summary.totalBytes || 0;
+    $('history-total-traffic').textContent = formatBytes(totalTraffic);
+    $('history-traffic-detail').textContent =
+      'دانلود: ' + formatBytes(summary.bytesSent || 0) + ' · آپلود: ' + formatBytes(summary.bytesReceived || 0);
+
+    $('history-last-real-ip').textContent = summary.lastRealIp || '–';
+    $('history-real-port').textContent = summary.lastRealAddress ? ('آدرس کامل: ' + summary.lastRealAddress) : '–';
+    $('history-session-count').textContent = String(summary.connectionCount || list.length || 0);
+
     const body = $('history-body');
-    if (!list || !list.length) {
+    if (!list.length) {
       body.innerHTML = '<tr><td colspan="6" class="muted center">سابقه‌ای از اتصال برای این کاربر ثبت نشده است</td></tr>';
       return;
     }
