@@ -225,9 +225,19 @@ async function loadClients() {
     const sentAll = data.totalTraffic?.bytesSent || cachedClients.reduce((acc, c) => acc + (c.bytesSent || 0), 0);
     const recvAll = data.totalTraffic?.bytesReceived || cachedClients.reduce((acc, c) => acc + (c.bytesReceived || 0), 0);
     const statTraffic = $('stat-traffic');
-    if (statTraffic) statTraffic.textContent = formatBytes(totalAll);
+    if (statTraffic) statTraffic.textContent = totalAll > 0 ? formatBytes(totalAll) : '–';
     const statSplit = $('stat-traffic-split');
-    if (statSplit) statSplit.textContent = `↓ ${formatBytes(sentAll)} · ↑ ${formatBytes(recvAll)}`;
+    if (statSplit) {
+      if (sentAll > 0 && recvAll > 0) {
+        statSplit.textContent = `↓ ${formatBytes(sentAll)} · ↑ ${formatBytes(recvAll)}`;
+      } else if (sentAll > 0) {
+        statSplit.textContent = `↓ ${formatBytes(sentAll)}`;
+      } else if (recvAll > 0) {
+        statSplit.textContent = `↑ ${formatBytes(recvAll)}`;
+      } else {
+        statSplit.textContent = '–';
+      }
+    }
 
     renderClients();
   } catch (err) {
@@ -371,16 +381,24 @@ function lastRealIpCell(c) {
 
 function trafficCell(c) {
   const total = c.totalBytes || 0;
-  if (!total) return '<span class="dim">0 B</span>';
+  if (!total) return '<span class="dim">–</span>';
   const sent = c.bytesSent || 0;
   const recv = c.bytesReceived || 0;
+  let split = '';
+  if (sent > 0 && recv > 0) {
+    split = `
+      <span class="down" title="${escapeHtml(t('trafficDownload'))}">↓ ${formatBytes(sent)}</span>
+      <span class="up" title="${escapeHtml(t('trafficUpload'))}">↑ ${formatBytes(recv)}</span>
+    `;
+  } else if (sent > 0) {
+    split = `<span class="down" title="${escapeHtml(t('trafficDownload'))}">↓ ${formatBytes(sent)}</span>`;
+  } else if (recv > 0) {
+    split = `<span class="up" title="${escapeHtml(t('trafficUpload'))}">↑ ${formatBytes(recv)}</span>`;
+  }
   return `
     <div class="traffic-cell">
       <span class="traffic-total">${formatBytes(total)}</span>
-      <div class="traffic-split">
-        <span class="down" title="${escapeHtml(t('trafficDownload'))}">↓ ${formatBytes(sent)}</span>
-        <span class="up" title="${escapeHtml(t('trafficUpload'))}">↑ ${formatBytes(recv)}</span>
-      </div>
+      ${split ? `<div class="traffic-split">${split}</div>` : ''}
     </div>
   `;
 }
@@ -707,7 +725,16 @@ async function showDetails(name) {
       [t('colLastRealIp'), c.lastRealAddress || '–'],
       [
         t('colTraffic'),
-        formatBytes(c.totalBytes) + ' (' + t('trafficDownload') + ': ' + formatBytes(c.bytesSent) + ' / ' + t('trafficUpload') + ': ' + formatBytes(c.bytesReceived) + ')',
+        c.totalBytes > 0
+          ? formatBytes(c.totalBytes) +
+            (c.bytesSent > 0 || c.bytesReceived > 0
+              ? ' (' +
+                (c.bytesSent > 0 ? t('trafficDownload') + ': ' + formatBytes(c.bytesSent) : '') +
+                (c.bytesSent > 0 && c.bytesReceived > 0 ? ' / ' : '') +
+                (c.bytesReceived > 0 ? t('trafficUpload') + ': ' + formatBytes(c.bytesReceived) : '') +
+                ')'
+              : '')
+          : '–',
       ],
       [t('colLastRequest'), c.lastRequest ? fmtDate(c.lastRequest) + ' (' + formatTimeAgo(c.lastRequest) + ')' : '–'],
       [t('colLastUrl'), c.lastUrl ? c.lastUrl + (c.lastUrlTime ? ' (' + formatTimeAgo(c.lastUrlTime) + ')' : '') : '–'],
@@ -719,7 +746,14 @@ async function showDetails(name) {
     ];
     if (c.connection) {
       rows.push(['Real IP (Current)', c.connection.realAddress]);
-      rows.push(['Current Session', formatBytes(c.connection.bytesReceived) + ' in / ' + formatBytes(c.connection.bytesSent) + ' out']);
+      const connIn = c.connection.bytesReceived || 0;
+      const connOut = c.connection.bytesSent || 0;
+      if (connIn > 0 || connOut > 0) {
+        const parts = [];
+        if (connIn > 0) parts.push(formatBytes(connIn) + ' in');
+        if (connOut > 0) parts.push(formatBytes(connOut) + ' out');
+        rows.push(['Current Session', parts.join(' / ')]);
+      }
     }
     if (c.notes) rows.push(['Notes', c.notes]);
 
@@ -750,9 +784,12 @@ async function showHistory(name) {
   const clientObj = cachedClients.find((c) => c.name === name);
   if (clientObj?.lastUrl) {
     const isHttps = clientObj.lastUrl.startsWith('https://');
+    const icon = isHttps
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;vertical-align:middle;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;vertical-align:middle;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg>';
     $('history-last-url').innerHTML = `
       <span class="chip-url ${isHttps ? 'chip-https' : 'chip-http'}" style="max-width:100%;">
-        ${isHttps ? '🔒' : '🌐'} <span class="url-text">${escapeHtml(clientObj.lastUrl.replace(/^https?:\/\//i, ''))}</span>
+        ${icon} <span class="url-text">${escapeHtml(clientObj.lastUrl.replace(/^https?:\/\//i, ''))}</span>
       </span>
     `;
     $('history-last-url-time').textContent = clientObj.lastUrlTime ? formatTimeAgo(clientObj.lastUrlTime) : '–';
@@ -791,9 +828,18 @@ async function showHistory(name) {
     const summary = data.summary || {};
 
     const totalTraffic = summary.totalBytes || 0;
-    $('history-total-traffic').textContent = formatBytes(totalTraffic);
-    $('history-traffic-detail').textContent =
-      t('trafficDownload') + ': ' + formatBytes(summary.bytesSent || 0) + ' · ' + t('trafficUpload') + ': ' + formatBytes(summary.bytesReceived || 0);
+    $('history-total-traffic').textContent = totalTraffic > 0 ? formatBytes(totalTraffic) : '–';
+    const sent = summary.bytesSent || 0;
+    const recv = summary.bytesReceived || 0;
+    let detailText = '–';
+    if (sent > 0 && recv > 0) {
+      detailText = `↓ ${formatBytes(sent)} · ↑ ${formatBytes(recv)}`;
+    } else if (sent > 0) {
+      detailText = `↓ ${formatBytes(sent)}`;
+    } else if (recv > 0) {
+      detailText = `↑ ${formatBytes(recv)}`;
+    }
+    $('history-traffic-detail').textContent = detailText;
 
     $('history-last-real-ip').textContent = summary.lastRealIp || '–';
     $('history-real-port').textContent = summary.lastRealAddress ? t('historyFullAddr') + summary.lastRealAddress : '–';
@@ -813,7 +859,16 @@ async function showHistory(name) {
         const discHtml = c.disconnectedAt
           ? fmtDate(c.disconnectedAt)
           : (isConn ? `<span class="pulse-dot"></span> ${escapeHtml(t('statusConnecting'))}` : '–');
-        const trafficHtml = formatBytes(c.bytesReceived) + ' ' + t('trafficUpload') + ' / ' + formatBytes(c.bytesSent) + ' ' + t('trafficDownload');
+        const recv = c.bytesReceived || 0;
+        const sent = c.bytesSent || 0;
+        let trafficHtml = '<span class="dim">–</span>';
+        if (recv > 0 && sent > 0) {
+          trafficHtml = `<span class="down">↓ ${formatBytes(sent)}</span> <span class="dim">·</span> <span class="up">↑ ${formatBytes(recv)}</span>`;
+        } else if (sent > 0) {
+          trafficHtml = `<span class="down">↓ ${formatBytes(sent)}</span>`;
+        } else if (recv > 0) {
+          trafficHtml = `<span class="up">↑ ${formatBytes(recv)}</span>`;
+        }
         return `
           <tr>
             <td>${statusHtml}</td>
@@ -846,8 +901,8 @@ async function loadClientUrls(name) {
       .map((u) => {
         const isHttps = u.url.startsWith('https://');
         const icon = isHttps
-          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:middle;margin-inline-end:4px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
-          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:middle;margin-inline-end:4px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;vertical-align:middle;margin-inline-end:3px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;vertical-align:middle;margin-inline-end:3px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
         const typeBadge = isHttps
           ? `<span class="chip chip-https" style="font-size:0.72rem;padding:0.12rem 0.45rem;">HTTPS</span>`
           : `<span class="chip chip-http" style="font-size:0.72rem;padding:0.12rem 0.45rem;">HTTP</span>`;

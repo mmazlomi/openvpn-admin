@@ -747,8 +747,8 @@ td.actions {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.25rem 0.55rem;
-  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.73rem;
   font-weight: 600;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
@@ -759,8 +759,9 @@ td.actions {
   line-height: 1;
 }
 .btn-action svg {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
 }
 .btn-action:hover:not(:disabled) {
   background: var(--surface-2);
@@ -1060,6 +1061,66 @@ select:focus {
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
   margin-top: 0.65rem;
+}
+
+/* History Modal Custom Styling */
+#history-modal .modal-header h3 {
+  font-size: 1.02rem;
+}
+#history-modal .modal-close-btn {
+  font-size: 0.95rem;
+  padding: 0.15rem 0.35rem;
+}
+#history-summary-cards {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important;
+  gap: 0.65rem !important;
+  margin: 0 0 0.85rem !important;
+}
+#history-summary-cards .card {
+  padding: 0.6rem 0.85rem !important;
+}
+#history-summary-cards .card-label {
+  font-size: 0.72rem;
+}
+#history-summary-cards .card-value {
+  font-size: 1.05rem;
+}
+#history-summary-cards .chip-url {
+  font-size: 0.73rem;
+  padding: 0.1rem 0.35rem;
+  gap: 0.25rem;
+}
+#history-summary-cards .chip-url svg {
+  width: 10px;
+  height: 10px;
+}
+#history-tabs .filter-tab {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.75rem;
+}
+#history-conns-panel table th,
+#history-conns-panel table td,
+#history-urls-panel table th,
+#history-urls-panel table td {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+}
+#history-body .status-pill {
+  font-size: 0.7rem;
+  padding: 0.12rem 0.45rem;
+}
+#history-body .pulse-dot {
+  width: 6px;
+  height: 6px;
+}
+#history-body .down { color: #3b82f6; }
+#history-body .up { color: #10b981; }
+#history-urls-panel a svg {
+  width: 10px;
+  height: 10px;
+  vertical-align: middle;
+  margin-inline-end: 3px;
+  flex-shrink: 0;
 }
 
 .toast {
