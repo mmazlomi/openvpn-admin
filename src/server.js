@@ -62,6 +62,13 @@ function startServer() {
         port: config.port,
         env: config.NODE_ENV,
       });
+
+      // Background connection tracker
+      import('./services/connections.js').then(({ syncConnectionHistory }) => {
+        syncConnectionHistory();
+        const interval = setInterval(syncConnectionHistory, 15_000);
+        interval.unref();
+      }).catch(() => {});
     });
 
     const shutdown = (signal) => {

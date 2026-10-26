@@ -285,6 +285,16 @@ test('static IP assignment and duplicate checking', async () => {
   assert.equal(resumeRes.json.client.status, 'active');
   assert.equal(resumeRes.json.client.paused, false);
 
+  // 12c. Test connection history endpoints
+  const recentConn = await request(server, 'GET', '/api/connections/recent?limit=10', { cookie });
+  assert.equal(recentConn.status, 200);
+  assert.ok(Array.isArray(recentConn.json.connections));
+
+  const clientConn = await request(server, 'GET', '/api/clients/static-user2/connections', { cookie });
+  assert.equal(clientConn.status, 200);
+  assert.equal(clientConn.json.client, 'static-user2');
+  assert.ok(Array.isArray(clientConn.json.connections));
+
   // 13. Delete client static-user1 (revoked) and static-user2 (active)
   const del1 = await request(server, 'DELETE', '/api/clients/static-user1', {
     cookie,

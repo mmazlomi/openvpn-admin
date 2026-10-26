@@ -57,6 +57,31 @@
     </section>
 
     <section class="panel">
+      <div class="panel-head">
+        <h2>۱۰ اتصال اخیر</h2>
+        <button id="refresh-conn-btn" class="btn-ghost" type="button" title="بروزرسانی اتصالات">بروزرسانی</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>کاربر</th>
+              <th>وضعیت</th>
+              <th>IP متصل (VPN)</th>
+              <th>آدرس اینترنتی (Real IP)</th>
+              <th>زمان شروع اتصال</th>
+              <th>زمان قطع</th>
+              <th>ترافیک مصرفی</th>
+            </tr>
+          </thead>
+          <tbody id="recent-connections-body">
+            <tr><td colspan="7" class="muted center">در حال دریافت اتصالات…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
       <div class="panel-head"><h2>گزارش رویدادها</h2></div>
       <div class="table-wrap">
         <table>
@@ -106,6 +131,34 @@
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="details-title">
       <h3 id="details-title">جزئیات کاربر</h3>
       <dl class="details" id="details-body"></dl>
+      <div class="modal-actions">
+        <button type="button" class="btn-primary" id="details-view-history-btn">مشاهده تاریخچه اتصالات</button>
+        <button type="button" class="btn-ghost" data-close>بستن</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Connection History modal -->
+  <div class="modal-backdrop" id="history-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="history-title" style="max-width: 760px; width: 100%;">
+      <h3 id="history-title">تاریخچه اتصالات کاربر: <span id="history-client-label" class="mono"></span></h3>
+      <div class="table-wrap" style="max-height: 400px; overflow-y: auto; margin: 1rem 0;">
+        <table>
+          <thead>
+            <tr>
+              <th>وضعیت</th>
+              <th>IP متصل (VPN)</th>
+              <th>آدرس اینترنتی (Real IP)</th>
+              <th>زمان شروع اتصال</th>
+              <th>زمان قطع</th>
+              <th>ترافیک مصرفی</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <tr><td colspan="6" class="muted center">در حال بارگذاری…</td></tr>
+          </tbody>
+        </table>
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn-ghost" data-close>بستن</button>
       </div>

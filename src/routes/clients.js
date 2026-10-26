@@ -17,6 +17,7 @@ import {
   resumeClient,
 } from '../services/clients.js';
 import { generateClientConfig } from '../services/client-config.js';
+import { getClientConnections } from '../services/connections.js';
 import { clientIp } from '../middleware.js';
 
 const router = express.Router();
@@ -186,6 +187,16 @@ router.post('/:name/activate', async (req, res, next) => {
         paused: !!row.paused,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:name/connections', async (req, res, next) => {
+  try {
+    const limit = Number.parseInt(req.query.limit, 10) || 50;
+    const connections = await getClientConnections(req.params.name, limit);
+    res.json({ client: req.params.name, connections });
   } catch (err) {
     next(err);
   }

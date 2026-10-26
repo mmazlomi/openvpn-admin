@@ -68,8 +68,22 @@ function migrate(d) {
       expires_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS connection_history (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_name     TEXT NOT NULL,
+      real_address    TEXT,
+      virtual_ip      TEXT,
+      connected_at    TEXT NOT NULL,
+      disconnected_at TEXT,
+      bytes_received  INTEGER DEFAULT 0,
+      bytes_sent      INTEGER DEFAULT 0,
+      status          TEXT NOT NULL DEFAULT 'connected'
+    );
+
     CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires_at);
+    CREATE INDEX IF NOT EXISTS idx_conn_client ON connection_history (client_name, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_conn_id ON connection_history (id DESC);
   `);
 
   const cols = d.pragma('table_info(clients)');
@@ -201,6 +215,67 @@ export const audit = {
     return getDb()
       .prepare('SELECT * FROM audit_logs ORDER BY id DESC LIMIT ?')
       .all(Math.min(Math.max(limit, 1), 500));
+  },
+};
+
+/* ----------------------- connection history ----------------------- */
+
+export const connections = {
+  recordConnection({ clientName, realAddress, virtualIp, connectedAt, bytesReceived = 0, bytesSent = 0 }) {
+    const d = getDb();
+    const existing = d
+      .prepare('SELECT id FROM connection_history WHERE client_name = ? AND connected_at = ?')
+      .get(clientName, connectedAt);
+    if (!existing) {
+      d.prepare(
+        `INSERT INTO connection_history (client_name, real_address, virtual_ip, connected_at, bytes_received, bytes_sent, status)
+         VALUES (?, ?, ?, ?, ?, ?, 'connected')`,
+      ).run(clientName, realAddress, virtualIp, connectedAt, bytesReceived, bytesSent);
+    } else {
+      d.prepare(
+        `UPDATE connection_history
+            SET bytes_received = ?, bytes_sent = ?, virtual_ip = COALESCE(?, virtual_ip), real_address = COALESCE(?, real_address)
+          WHERE id = ?`,
+      ).run(bytesReceived, bytesSent, virtualIp, realAddress, existing.id);
+    }
+  },
+
+  markDisconnected(activeSessions) {
+    const d = getDb();
+    const openRows = d.prepare("SELECT id, client_name, connected_at FROM connection_history WHERE status = 'connected'").all();
+    const activeSet = new Set(activeSessions.map((s) => `${s.clientName}_${s.connectedAt}`));
+    for (const row of openRows) {
+      if (!activeSet.has(`${row.client_name}_${row.connected_at}`)) {
+        d.prepare("UPDATE connection_history SET status = 'disconnected', disconnected_at = datetime('now') WHERE id = ?").run(row.id);
+      }
+    }
+  },
+
+  getRecent(limit = 10) {
+    return getDb()
+      .prepare(
+        `SELECT id, client_name AS clientName, real_address AS realAddress, virtual_ip AS virtualIp,
+                connected_at AS connectedAt, disconnected_at AS disconnectedAt,
+                bytes_received AS bytesReceived, bytes_sent AS bytesSent, status
+           FROM connection_history
+          ORDER BY id DESC
+          LIMIT ?`,
+      )
+      .all(Math.min(Math.max(limit, 1), 100));
+  },
+
+  getForClient(clientName, limit = 50) {
+    return getDb()
+      .prepare(
+        `SELECT id, client_name AS clientName, real_address AS realAddress, virtual_ip AS virtualIp,
+                connected_at AS connectedAt, disconnected_at AS disconnectedAt,
+                bytes_received AS bytesReceived, bytes_sent AS bytesSent, status
+           FROM connection_history
+          WHERE client_name = ?
+          ORDER BY id DESC
+          LIMIT ?`,
+      )
+      .all(clientName, Math.min(Math.max(limit, 1), 100));
   },
 };
 

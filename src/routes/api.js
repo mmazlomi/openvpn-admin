@@ -7,6 +7,7 @@ import { getDb, audit as auditDb } from '../database.js';
 import { pkiHealthy } from '../services/easyrsa.js';
 import { getStatus, detectServerUnit } from '../services/openvpn.js';
 import { sync } from '../services/clients.js';
+import { getRecentConnections } from '../services/connections.js';
 import { clientIp } from '../middleware.js';
 
 export const healthRouter = express.Router();
@@ -68,6 +69,16 @@ apiRouter.post('/sync', async (req, res, next) => {
   try {
     const summary = await sync({ id: req.admin.id, username: req.admin.username, ip: clientIp(req) });
     res.json({ ok: true, summary });
+  } catch (err) {
+    next(err);
+  }
+});
+
+apiRouter.get('/connections/recent', async (req, res, next) => {
+  try {
+    const limit = Number.parseInt(req.query.limit, 10) || 10;
+    const connections = await getRecentConnections(limit);
+    res.json({ connections });
   } catch (err) {
     next(err);
   }
