@@ -91,6 +91,9 @@ case "$1" in
      echo ok ;;
   revoke) echo ok ;;
   gen-crl) echo ok ;;
+  set-ip) echo ok ;;
+  delete-ip) echo ok ;;
+  read-ip) echo "" ;;
   *) echo "unknown $1" >&2; exit 1 ;;
 esac
 `,

@@ -89,6 +89,8 @@ button:disabled { opacity: .6; cursor: progress; }
 
 .error { color: var(--danger); font-size: .88rem; margin: .5rem 0 0; }
 .success { color: var(--success); font-size: .9rem; margin-top: .75rem; }
+.hint-text { color: var(--muted); font-size: .8rem; margin: .1rem 0 .4rem; }
+.modal-intro { margin: 0 0 1rem; color: var(--muted); font-size: .95rem; }
 
 /* ---------- layout ---------- */
 .topbar {

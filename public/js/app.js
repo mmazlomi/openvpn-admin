@@ -58,8 +58,14 @@ function wireEvents() {
   $('new-client-btn').addEventListener('click', openCreateModal);
   $('sync-btn').addEventListener('click', doSync);
   $('create-form').addEventListener('submit', doCreate);
+  $('ip-form').addEventListener('submit', doSaveIp);
+  $('ip-clear-btn').addEventListener('click', doClearIp);
   document.querySelectorAll('[data-close]').forEach((b) =>
-    b.addEventListener('click', () => { $('create-modal').hidden = true; $('details-modal').hidden = true; }));
+    b.addEventListener('click', () => {
+      $('create-modal').hidden = true;
+      $('details-modal').hidden = true;
+      $('ip-modal').hidden = true;
+    }));
   document.querySelectorAll('.modal-backdrop').forEach((bd) =>
     bd.addEventListener('click', (e) => { if (e.target === bd) bd.hidden = true; }));
 }
@@ -94,7 +100,7 @@ async function loadClients() {
     $('stat-revoked').textContent = list.filter((c) => c.status === 'revoked').length;
 
     if (!list.length) {
-      body.innerHTML = '<tr><td colspan="6" class="muted center">هنوز کاربری وجود ندارد</td></tr>';
+      body.innerHTML = '<tr><td colspan="7" class="muted center">هنوز کاربری وجود ندارد</td></tr>';
       return;
     }
     body.innerHTML = '';
@@ -102,6 +108,7 @@ async function loadClients() {
       const tr = document.createElement('tr');
       tr.appendChild(cell(nameCell(c)));
       tr.appendChild(cell(statusPill(c.status)));
+      tr.appendChild(cell(c.staticIp ? '<span class="mono">' + escapeHtml(c.staticIp) + '</span>' : '<span class="muted">پویا</span>'));
       tr.appendChild(cell(fmtDateShort(c.createdAt)));
       tr.appendChild(cell(c.status === 'revoked' ? '–' : fmtDateShort(c.expiresAt)));
       tr.appendChild(cell(c.online ? '<span class="dot-online">آنلاین</span>' : fmtDateShort(c.lastSeen)));
@@ -143,6 +150,12 @@ function actionCell(c) {
   td.appendChild(details);
 
   if (c.status === 'active') {
+    const ipBtn = document.createElement('button');
+    ipBtn.className = 'btn-link';
+    ipBtn.textContent = 'تنظیم IP';
+    ipBtn.addEventListener('click', () => openIpModal(c));
+    td.appendChild(ipBtn);
+
     const rv = document.createElement('button');
     rv.className = 'btn-link';
     rv.style.color = 'var(--danger)';
@@ -193,6 +206,7 @@ async function showDetails(name) {
     const rows = [
       ['نام', c.name],
       ['وضعیت', STATUS_FA[c.status] || c.status],
+      ['IP اختصاصی', c.staticIp ? c.staticIp : 'پویا (Dynamic)'],
       ['سریال گواهی', c.certificateSerial || '–'],
       ['ایجاد', fmtDate(c.createdAt)],
       ['انقضا', fmtDate(c.expiresAt)],
@@ -232,12 +246,16 @@ async function doCreate(e) {
   e.preventDefault();
   const name = $('client-name').value.trim();
   const notes = $('client-notes').value.trim();
+  const staticIp = $('client-ip').value.trim();
   $('create-error').hidden = true;
   const btn = $('create-submit');
   btn.disabled = true;
   btn.textContent = 'در حال ایجاد…';
   try {
-    await api('/api/clients', { method: 'POST', body: JSON.stringify({ name, notes }) });
+    await api('/api/clients', {
+      method: 'POST',
+      body: JSON.stringify({ name, notes, staticIp: staticIp || null }),
+    });
     $('create-download').href = '/api/clients/' + encodeURIComponent(name) + '/config';
     $('create-download').setAttribute('download', name + '.ovpn');
     $('create-success').hidden = false;
@@ -250,6 +268,63 @@ async function doCreate(e) {
   } finally {
     btn.disabled = false;
     btn.textContent = 'ایجاد کاربر';
+  }
+}
+
+/* ---------- static ip modal ---------- */
+function openIpModal(c) {
+  $('ip-client-name').value = c.name;
+  $('ip-modal-client-label').textContent = c.name;
+  $('ip-address-input').value = c.staticIp || '';
+  $('ip-error').hidden = true;
+  $('ip-submit').disabled = false;
+  $('ip-clear-btn').hidden = !c.staticIp;
+  $('ip-modal').hidden = false;
+  $('ip-address-input').focus();
+}
+
+async function doSaveIp(e) {
+  e.preventDefault();
+  const name = $('ip-client-name').value;
+  const ip = $('ip-address-input').value.trim();
+  const btn = $('ip-submit');
+  btn.disabled = true;
+  $('ip-error').hidden = true;
+  try {
+    await api('/api/clients/' + encodeURIComponent(name) + '/ip', {
+      method: 'POST',
+      body: JSON.stringify({ staticIp: ip || null }),
+    });
+    $('ip-modal').hidden = true;
+    toast(ip ? 'IP اختصاصی ذخیره شد' : 'IP اختصاصی حذف شد (تبدیل به پویا)', 'good');
+    await Promise.all([loadClients(), loadAudit()]);
+  } catch (err) {
+    $('ip-error').textContent = err.message;
+    $('ip-error').hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function doClearIp() {
+  const name = $('ip-client-name').value;
+  if (!confirm('آیا مطمئن هستید که می‌خواهید IP اختصاصی کاربر «' + name + '» حذف شده و به IP پویا تغییر کند؟')) return;
+  const btn = $('ip-clear-btn');
+  btn.disabled = true;
+  $('ip-error').hidden = true;
+  try {
+    await api('/api/clients/' + encodeURIComponent(name) + '/ip', {
+      method: 'POST',
+      body: JSON.stringify({ staticIp: null }),
+    });
+    $('ip-modal').hidden = true;
+    toast('IP اختصاصی حذف شد (تبدیل به پویا)', 'good');
+    await Promise.all([loadClients(), loadAudit()]);
+  } catch (err) {
+    $('ip-error').textContent = err.message;
+    $('ip-error').hidden = false;
+  } finally {
+    btn.disabled = false;
   }
 }
 

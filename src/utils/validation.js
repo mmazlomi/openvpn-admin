@@ -89,3 +89,96 @@ export function validateNotes(raw) {
   if (notes.length > 500) throw new ValidationError('Notes must be at most 500 characters', 'INVALID_NOTES');
   return notes || null;
 }
+
+export const IP_V4_RE = /^(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})$/;
+
+export function ipToInt(ip) {
+  const parts = ip.split('.').map((p) => Number.parseInt(p, 10));
+  return (((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0);
+}
+
+export function intToIp(int) {
+  return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+}
+
+export function parseCidr(cidr) {
+  if (typeof cidr !== 'string' || !cidr.includes('/')) {
+    throw new ValidationError(`Invalid CIDR network format: ${cidr}`, 'INVALID_NETWORK');
+  }
+  const [ipPart, prefixStr] = cidr.trim().split('/');
+  if (!IP_V4_RE.test(ipPart)) {
+    throw new ValidationError(`Invalid CIDR network IP: ${ipPart}`, 'INVALID_NETWORK');
+  }
+  const prefix = Number.parseInt(prefixStr, 10);
+  if (Number.isNaN(prefix) || prefix < 8 || prefix > 30) {
+    throw new ValidationError(`Invalid CIDR prefix length (must be 8-30): ${prefixStr}`, 'INVALID_NETWORK');
+  }
+  const netmaskInt = prefix === 0 ? 0 : ((0xFFFFFFFF << (32 - prefix)) >>> 0);
+  const networkInt = (ipToInt(ipPart) & netmaskInt) >>> 0;
+  const broadcastInt = (networkInt | (~netmaskInt >>> 0)) >>> 0;
+  return {
+    prefix,
+    netmask: intToIp(netmaskInt),
+    netmaskInt,
+    network: intToIp(networkInt),
+    networkInt,
+    broadcast: intToIp(broadcastInt),
+    broadcastInt,
+    server: intToIp(networkInt + 1),
+    serverInt: (networkInt + 1) >>> 0,
+    minClient: intToIp(networkInt + 2),
+    minClientInt: (networkInt + 2) >>> 0,
+    maxClient: intToIp(broadcastInt - 1),
+    maxClientInt: (broadcastInt - 1) >>> 0,
+  };
+}
+
+/**
+ * Validate an IPv4 address for static assignment.
+ * Returns normalized string or null if empty/omitted.
+ */
+export function validateStaticIp(raw, networkCidr = '10.8.0.0/24') {
+  if (raw === undefined || raw === null || raw === '') return null;
+  if (typeof raw !== 'string') {
+    throw new ValidationError('IP address must be a string', 'INVALID_IP');
+  }
+  const ip = raw.trim();
+  if (ip === '') return null;
+
+  if (!IP_V4_RE.test(ip)) {
+    throw new ValidationError('Invalid IPv4 address format (e.g. 10.8.0.50)', 'INVALID_IP');
+  }
+
+  const parts = ip.split('.').map((p) => Number.parseInt(p, 10));
+  for (const part of parts) {
+    if (part < 0 || part > 255) {
+      throw new ValidationError(`IP octet ${part} out of range (0-255)`, 'INVALID_IP');
+    }
+  }
+
+  const parsed = parseCidr(networkCidr);
+  const ipInt = ipToInt(ip);
+
+  // Subnet match check
+  if ((ipInt & parsed.netmaskInt) >>> 0 !== parsed.networkInt) {
+    throw new ValidationError(
+      `IP address ${ip} is outside the VPN network (${networkCidr})`,
+      'IP_OUT_OF_RANGE',
+    );
+  }
+
+  if (ipInt === parsed.networkInt) {
+    throw new ValidationError(`IP ${ip} is the reserved network address`, 'IP_RESERVED');
+  }
+
+  if (ipInt === parsed.broadcastInt) {
+    throw new ValidationError(`IP ${ip} is the reserved broadcast address`, 'IP_RESERVED');
+  }
+
+  if (ipInt === parsed.serverInt) {
+    throw new ValidationError(`IP ${ip} is reserved for the VPN server gateway`, 'IP_RESERVED');
+  }
+
+  return ip;
+}
+

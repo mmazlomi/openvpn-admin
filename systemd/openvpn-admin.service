@@ -42,7 +42,7 @@ RemoveIPC=true
 # Writable paths. The sandbox (ProtectSystem=strict) propagates to the
 # sudo-invoked helper, so the PKI directory must be listed here for
 # `easyrsa build-client-full` / `revoke` to work.
-ReadWritePaths=/var/lib/openvpn-admin /etc/openvpn/easy-rsa
+ReadWritePaths=/var/lib/openvpn-admin /etc/openvpn/easy-rsa /etc/openvpn/ccd
 ReadOnlyPaths=/etc/openvpn-admin.env /etc/openvpn-admin /etc/openvpn/server
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 SystemCallFilter=@system-service

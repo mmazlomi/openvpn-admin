@@ -93,6 +93,7 @@ const config = {
     protocol: (process.env.OPENVPN_PROTOCOL || 'udp').toLowerCase(),
   },
   vpnNetwork: process.env.VPN_NETWORK || '10.8.0.0/24',
+  ccdDir: process.env.CCD_DIR || '/etc/openvpn/ccd',
 
   // OpenVPN management interface for live connection status.
   mgmt: {

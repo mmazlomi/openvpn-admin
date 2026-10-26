@@ -17,6 +17,7 @@ DATA_DIR=/var/lib/openvpn-admin
 HELPER_CONF_DIR=/etc/openvpn-admin
 EASYRSA_DIR=${EASYRSA_DIR:-/etc/openvpn/easy-rsa}
 PKI_DIR=${PKI_DIR:-$EASYRSA_DIR/pki}
+CCD_DIR=${CCD_DIR:-/etc/openvpn/ccd}
 
 say()  { printf '\033[36m==>\033[0m %s\n' "$1"; }
 die()  { printf '\033[31mERROR:\033[0m %s\n' "$1" >&2; exit 1; }
@@ -55,6 +56,7 @@ systemctl list-units --type=service --all | grep -q openvpn || echo "  warning: 
 say "6/13  Creating directories"
 install -d -m 0750 "$DATA_DIR"
 install -d -m 0750 "$HELPER_CONF_DIR"
+install -d -m 0755 "$CCD_DIR"
 # ownership set in step 7 once the service user exists
 
 # 7. Service user
@@ -87,6 +89,7 @@ PKI_DIR=$PKI_DIR
 EASYRSA_BIN=$EASYRSA_DIR/easyrsa
 CA_PASS_FILE=$EASYRSA_DIR/ca.pass
 CERT_DAYS=${CLIENT_CERT_DAYS:-825}
+CCD_DIR=$CCD_DIR
 EOF
 chmod 0640 "$HELPER_CONF_DIR/helper.conf"
 chown root:"$SERVICE_USER" "$HELPER_CONF_DIR/helper.conf"

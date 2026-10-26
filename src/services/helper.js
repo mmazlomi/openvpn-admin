@@ -46,6 +46,9 @@ export async function helper(sub, args = [], opts = {}) {
     if (/invalid client name|reserved name/.test(stderr)) {
       throw new PkiError('Invalid client name', 'INVALID_CLIENT_NAME', 400);
     }
+    if (/invalid ip/.test(stderr)) {
+      throw new PkiError('Invalid IP address', 'INVALID_IP', 400);
+    }
     if (/certificate already exists/.test(stderr)) {
       throw new PkiError('A certificate with this name already exists', 'CERT_EXISTS', 409);
     }

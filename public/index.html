@@ -41,6 +41,7 @@
             <tr>
               <th>نام</th>
               <th>وضعیت</th>
+              <th>IP اختصاصی</th>
               <th>ایجاد</th>
               <th>انقضا</th>
               <th>آخرین اتصال</th>
@@ -48,7 +49,7 @@
             </tr>
           </thead>
           <tbody id="clients-body">
-            <tr><td colspan="6" class="muted center">در حال بارگذاری…</td></tr>
+            <tr><td colspan="7" class="muted center">در حال بارگذاری…</td></tr>
           </tbody>
         </table>
       </div>
@@ -78,6 +79,12 @@
         <input id="client-name" name="name" type="text" required
                pattern="[a-zA-Z0-9_-]+" maxlength="64"
                placeholder="letters, digits, _ or -" spellcheck="false" autocapitalize="none" />
+        <label for="client-ip">آدرس IP اختصاصی (اختیاری)</label>
+        <input id="client-ip" name="staticIp" type="text"
+               pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+               placeholder="مثلاً 10.8.0.50 (خالی = پویا)"
+               spellcheck="false" autocapitalize="none" />
+        <small class="hint-text">محدوده مجاز: 10.8.0.2 تا 10.8.0.254 (سیستم از IP تکراری جلوگیری می‌کند)</small>
         <label for="client-notes">یادداشت (اختیاری)</label>
         <input id="client-notes" name="notes" type="text" maxlength="500" />
         <div id="create-error" class="error" hidden></div>
@@ -101,6 +108,29 @@
       <div class="modal-actions">
         <button type="button" class="btn-ghost" data-close>بستن</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Edit IP modal -->
+  <div class="modal-backdrop" id="ip-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ip-title">
+      <h3 id="ip-title">تنظیم IP اختصاصی</h3>
+      <form id="ip-form" autocomplete="off">
+        <input type="hidden" id="ip-client-name" />
+        <p class="modal-intro">تعیین یا تغییر آدرس IP برای کاربر: <strong id="ip-modal-client-label" class="mono"></strong></p>
+        <label for="ip-address-input">آدرس IP استاتیک</label>
+        <input id="ip-address-input" name="staticIp" type="text"
+               pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+               placeholder="مثلاً 10.8.0.50 (خالی = پویا)"
+               spellcheck="false" autocapitalize="none" />
+        <small class="hint-text">محدوده مجاز: 10.8.0.2 تا 10.8.0.254. بررسی تکراری نبودن IP انجام می‌شود.</small>
+        <div id="ip-error" class="error" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" data-close>انصراف</button>
+          <button type="button" class="btn-danger" id="ip-clear-btn" hidden>حذف IP (تبدیل به پویا)</button>
+          <button type="submit" class="btn-primary" id="ip-submit">ذخیره IP</button>
+        </div>
+      </form>
     </div>
   </div>
 

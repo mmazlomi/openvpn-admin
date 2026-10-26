@@ -8,6 +8,7 @@ import {
   listClients,
   getClient,
   createClient,
+  setClientIp,
   revoke,
   archive,
 } from '../services/clients.js';
@@ -30,8 +31,8 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { name, notes } = req.body || {};
-    const row = await createClient(name, notes, actor(req));
+    const { name, notes, staticIp, ip } = req.body || {};
+    const row = await createClient(name, notes, staticIp !== undefined ? staticIp : ip, actor(req));
     res.status(201).json({
       ok: true,
       client: {
@@ -40,6 +41,25 @@ router.post('/', async (req, res, next) => {
         certificateSerial: row.certificate_serial,
         createdAt: row.created_at,
         expiresAt: row.expires_at,
+        staticIp: row.static_ip,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:name/ip', async (req, res, next) => {
+  try {
+    const { staticIp, ip } = req.body || {};
+    const targetIp = staticIp !== undefined ? staticIp : ip;
+    const row = await setClientIp(req.params.name, targetIp, actor(req));
+    res.json({
+      ok: true,
+      client: {
+        name: row.name,
+        status: row.status,
+        staticIp: row.static_ip,
       },
     });
   } catch (err) {

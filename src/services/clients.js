@@ -2,10 +2,12 @@
  * Client lifecycle orchestration: create / list / revoke / archive / sync.
  * Combines the SQLite metadata store, the EasyRSA layer and live status.
  */
+import config from '../config.js';
 import { clients as clientsDb, audit } from '../database.js';
 import { buildClient, revokeClient, readIndex } from './easyrsa.js';
+import { helper } from './helper.js';
 import { getStatus } from './openvpn.js';
-import { validateClientName, validateNotes } from '../utils/validation.js';
+import { validateClientName, validateNotes, validateStaticIp, parseCidr } from '../utils/validation.js';
 import { ConflictError, NotFoundError } from '../utils/errors.js';
 import logger from '../utils/logger.js';
 
@@ -39,6 +41,7 @@ export async function listClients() {
         expiresAt: r.expires_at,
         lastSeen: live ? new Date().toISOString() : r.last_seen,
         notes: r.notes,
+        staticIp: r.static_ip || null,
         online: !!live,
         connection: live
           ? {
@@ -62,26 +65,127 @@ export async function getClient(rawName) {
   return list.find((c) => c.name === name);
 }
 
-export async function createClient(rawName, rawNotes, actor) {
+export async function createClient(rawName, rawNotes, rawStaticIpOrActor, maybeActor) {
+  let rawStaticIp;
+  let actor;
+  if (maybeActor !== undefined || (typeof rawStaticIpOrActor === 'string' || rawStaticIpOrActor === null)) {
+    rawStaticIp = rawStaticIpOrActor;
+    actor = maybeActor;
+  } else {
+    rawStaticIp = null;
+    actor = rawStaticIpOrActor;
+  }
+
   const name = validateClientName(rawName);
   const notes = validateNotes(rawNotes);
+  const staticIp = validateStaticIp(rawStaticIp, config.vpnNetwork);
+
+  if (staticIp) {
+    const dup = clientsDb.findByStaticIp(staticIp);
+    if (dup) {
+      throw new ConflictError(`IP ${staticIp} is already assigned to client "${dup.name}"`, 'IP_DUPLICATE');
+    }
+
+    try {
+      const status = await getStatus();
+      const activeOnline = status.clients.find((c) => c.virtualAddress === staticIp);
+      if (activeOnline) {
+        throw new ConflictError(`IP ${staticIp} is currently active on client "${activeOnline.name}"`, 'IP_IN_USE');
+      }
+    } catch {
+      /* status check is best-effort */
+    }
+  }
 
   const result = await buildClient(name, (n) => !!clientsDb.findByName(n));
+
+  if (staticIp) {
+    const { netmask } = parseCidr(config.vpnNetwork);
+    await helper('set-ip', [name, staticIp, netmask]);
+  }
+
   clientsDb.create({
     name,
     certificateSerial: result.serial,
     expiresAt: result.expiresAt,
     notes,
+    staticIp,
   });
+
+  const details = [];
+  if (result.serial) details.push(`serial=${result.serial}`);
+  if (staticIp) details.push(`ip=${staticIp}`);
+
   audit.record({
     adminId: actor?.id,
     adminName: actor?.username,
     action: 'CREATE_CLIENT',
     clientName: name,
     ip: actor?.ip,
-    detail: result.serial ? `serial=${result.serial}` : null,
+    detail: details.length ? details.join(' ') : null,
   });
-  logger.info('client created', { client: name });
+  logger.info('client created', { client: name, staticIp });
+  return clientsDb.findByName(name);
+}
+
+export async function setClientIp(rawName, rawStaticIp, actor) {
+  const name = validateClientName(rawName);
+  const row = clientsDb.findByName(name);
+  if (!row) throw new NotFoundError('Client not found', 'CLIENT_NOT_FOUND');
+  if (row.status !== 'active') {
+    throw new ConflictError('Cannot assign IP to a revoked or archived client', 'CLIENT_NOT_ACTIVE');
+  }
+
+  const staticIp = validateStaticIp(rawStaticIp, config.vpnNetwork);
+
+  if (staticIp === null) {
+    if (row.static_ip) {
+      try {
+        await helper('delete-ip', [name]);
+      } catch (err) {
+        logger.warn('failed to delete ccd file', { client: name, err: err.message });
+      }
+      clientsDb.setStaticIp(name, null);
+      audit.record({
+        adminId: actor?.id,
+        adminName: actor?.username,
+        action: 'UNASSIGN_STATIC_IP',
+        clientName: name,
+        ip: actor?.ip,
+      });
+      logger.info('client static IP unassigned', { client: name });
+    }
+    return clientsDb.findByName(name);
+  }
+
+  const dup = clientsDb.findByStaticIp(staticIp);
+  if (dup && dup.name !== name) {
+    throw new ConflictError(`IP ${staticIp} is already assigned to client "${dup.name}"`, 'IP_DUPLICATE');
+  }
+
+  try {
+    const status = await getStatus();
+    const activeOnline = status.clients.find((c) => c.virtualAddress === staticIp && c.name !== name);
+    if (activeOnline) {
+      throw new ConflictError(`IP ${staticIp} is currently active on client "${activeOnline.name}"`, 'IP_IN_USE');
+    }
+  } catch {
+    /* status check is best-effort */
+  }
+
+  const { netmask } = parseCidr(config.vpnNetwork);
+  await helper('set-ip', [name, staticIp, netmask]);
+  clientsDb.setStaticIp(name, staticIp);
+
+  audit.record({
+    adminId: actor?.id,
+    adminName: actor?.username,
+    action: 'SET_STATIC_IP',
+    clientName: name,
+    ip: actor?.ip,
+    detail: `ip=${staticIp}`,
+  });
+  logger.info('client static IP assigned', { client: name, ip: staticIp });
   return clientsDb.findByName(name);
 }
 
@@ -91,6 +195,14 @@ export async function revoke(rawName, actor) {
   if (!row) throw new NotFoundError('Client not found', 'CLIENT_NOT_FOUND');
   if (row.status === 'revoked' || row.status === 'archived') {
     throw new ConflictError('Client is already revoked', 'ALREADY_REVOKED');
+  }
+
+  if (row.static_ip) {
+    try {
+      await helper('delete-ip', [name]);
+    } catch (err) {
+      logger.warn('failed to delete ccd file on revoke', { client: name, err: err.message });
+    }
   }
 
   const { crl } = await revokeClient(name);
@@ -118,6 +230,13 @@ export async function archive(rawName, actor) {
   if (!row) throw new NotFoundError('Client not found', 'CLIENT_NOT_FOUND');
   if (row.status !== 'revoked') {
     throw new ConflictError('Only revoked clients can be archived', 'NOT_REVOKED');
+  }
+  if (row.static_ip) {
+    try {
+      await helper('delete-ip', [name]);
+    } catch (err) {
+      logger.warn('failed to delete ccd file on archive', { client: name, err: err.message });
+    }
   }
   clientsDb.markArchived(name);
   audit.record({

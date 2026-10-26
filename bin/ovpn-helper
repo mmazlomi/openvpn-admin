@@ -22,6 +22,9 @@
 #   read-index        print pki/index.txt
 #   pki-status <name>  print "req=0/1 cert=0/1 key=0/1"
 #   crl-status        print "mtime=<epoch> size=<bytes>" for pki/crl.pem
+#   set-ip <name> <ip> [mask]  write client CCD file with ifconfig-push
+#   delete-ip <name>   remove client CCD file
+#   read-ip <name>     print assigned static IP from CCD file
 #
 set -euo pipefail
 umask 077
@@ -35,6 +38,7 @@ CERT_DAYS=825
 PKI_DIR="${PKI_DIR:-$EASYRSA_DIR/pki}"
 EASYRSA_BIN="${EASYRSA_BIN:-$EASYRSA_DIR/easyrsa}"
 CA_PASS_FILE="${CA_PASS_FILE:-$EASYRSA_DIR/ca.pass}"
+CCD_DIR="${CCD_DIR:-/etc/openvpn/ccd}"
 
 die() { echo "helper-error: $*" >&2; exit 1; }
 
@@ -43,6 +47,15 @@ valid_name() {
   case "$1" in
     ca|server|ta|dh|crl|.|..) die "reserved name" ;;
   esac
+}
+
+valid_ip() {
+  local ip="$1"
+  [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || die "invalid ip format"
+  IFS='.' read -r o1 o2 o3 o4 <<< "$ip"
+  for o in "$o1" "$o2" "$o3" "$o4"; do
+    (( o >= 0 && o <= 255 )) || die "ip octet out of range: $o"
+  done
 }
 
 easyrsa_args=(--batch "--pki=$PKI_DIR")
@@ -122,6 +135,29 @@ case "$cmd" in
       echo "mtime=$(stat -c %Y "$f") size=$(stat -c %s "$f")"
     else
       echo "mtime=0 size=0"
+    fi
+    ;;
+
+  set-ip)
+    name="${1:-}"; valid_name "$name"
+    ip="${2:-}"; valid_ip "$ip"
+    netmask="${3:-255.255.255.0}"; valid_ip "$netmask"
+    mkdir -p "$CCD_DIR"
+    printf "ifconfig-push %s %s\n" "$ip" "$netmask" > "$CCD_DIR/$name"
+    chmod 644 "$CCD_DIR/$name"
+    echo "ok"
+    ;;
+
+  delete-ip)
+    name="${1:-}"; valid_name "$name"
+    rm -f "$CCD_DIR/$name"
+    echo "ok"
+    ;;
+
+  read-ip)
+    name="${1:-}"; valid_name "$name"
+    if [ -f "$CCD_DIR/$name" ]; then
+      awk '/^ifconfig-push / {print $2}' "$CCD_DIR/$name"
     fi
     ;;
 

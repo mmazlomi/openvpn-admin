@@ -46,7 +46,8 @@ function migrate(d) {
       archived_at        TEXT,
       expires_at         TEXT,
       last_seen          TEXT,
-      notes              TEXT
+      notes              TEXT,
+      static_ip          TEXT
     );
 
     CREATE TABLE IF NOT EXISTS audit_logs (
@@ -69,6 +70,12 @@ function migrate(d) {
     CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires_at);
   `);
+
+  const cols = d.pragma('table_info(clients)');
+  if (!cols.some((c) => c.name === 'static_ip')) {
+    d.exec('ALTER TABLE clients ADD COLUMN static_ip TEXT');
+  }
+  d.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_static_ip ON clients (static_ip) WHERE static_ip IS NOT NULL');
 }
 
 /* ----------------------------- admins ----------------------------- */
@@ -106,14 +113,21 @@ export const clients = {
   findByName(name) {
     return getDb().prepare('SELECT * FROM clients WHERE name = ?').get(name);
   },
-  create({ name, certificateSerial = null, expiresAt = null, notes = null }) {
+  findByStaticIp(ip) {
+    return getDb().prepare('SELECT * FROM clients WHERE static_ip = ?').get(ip);
+  },
+  create({ name, certificateSerial = null, expiresAt = null, notes = null, staticIp = null }) {
     const info = getDb()
       .prepare(
-        `INSERT INTO clients (name, status, certificate_serial, expires_at, notes)
-         VALUES (?, 'active', ?, ?, ?)`,
+        `INSERT INTO clients (name, status, certificate_serial, expires_at, notes, static_ip)
+         VALUES (?, 'active', ?, ?, ?, ?)`,
       )
-      .run(name, certificateSerial, expiresAt, notes);
+      .run(name, certificateSerial, expiresAt, notes, staticIp);
     return this.findByName(name) && getDb().prepare('SELECT * FROM clients WHERE id = ?').get(info.lastInsertRowid);
+  },
+  setStaticIp(name, staticIp) {
+    getDb().prepare('UPDATE clients SET static_ip = ? WHERE name = ?').run(staticIp, name);
+    return this.findByName(name);
   },
   upsertFromPki({ name, status, certificateSerial, expiresAt, revokedAt }) {
     const existing = this.findByName(name);
@@ -138,12 +152,12 @@ export const clients = {
   },
   markRevoked(name) {
     getDb()
-      .prepare("UPDATE clients SET status = 'revoked', revoked_at = datetime('now') WHERE name = ?")
+      .prepare("UPDATE clients SET status = 'revoked', revoked_at = datetime('now'), static_ip = NULL WHERE name = ?")
       .run(name);
   },
   markArchived(name) {
     getDb()
-      .prepare("UPDATE clients SET status = 'archived', archived_at = datetime('now') WHERE name = ?")
+      .prepare("UPDATE clients SET status = 'archived', archived_at = datetime('now'), static_ip = NULL WHERE name = ?")
       .run(name);
   },
   setLastSeen(name, isoTs) {
