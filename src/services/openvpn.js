@@ -70,6 +70,36 @@ export function parseStatus3(text) {
   return { available: true, clients };
 }
 
+/**
+ * Kill/disconnect an active client session via the management interface.
+ * @param {string} name
+ * @returns {Promise<boolean>}
+ */
+export function killClient(name) {
+  if (!config.mgmt.enabled) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host: config.mgmt.host, port: config.mgmt.port });
+    let done = false;
+
+    const finish = (result) => {
+      if (done) return;
+      done = true;
+      socket.destroy();
+      resolve(result);
+    };
+
+    socket.setTimeout(3000);
+    socket.on('timeout', () => finish(false));
+    socket.on('error', () => finish(false));
+
+    socket.on('connect', () => {
+      socket.write(`kill ${name}\nquit\n`);
+      finish(true);
+    });
+  });
+}
+
 // Matches the OpenVPN daemon units — openvpn-server@<x>.service,
 // openvpn-client@<x>.service, openvpn@<x>.service, openvpn.service — but NOT
 // this panel's own openvpn-admin.service.

@@ -163,6 +163,19 @@ export const clients = {
   setLastSeen(name, isoTs) {
     getDb().prepare('UPDATE clients SET last_seen = ? WHERE name = ?').run(isoTs, name);
   },
+  deleteByName(name) {
+    getDb().prepare('DELETE FROM clients WHERE name = ?').run(name);
+  },
+  updateExpiry(name, { certificateSerial, expiresAt }) {
+    getDb()
+      .prepare(
+        `UPDATE clients
+            SET status = 'active', certificate_serial = ?, expires_at = ?, revoked_at = NULL
+          WHERE name = ?`,
+      )
+      .run(certificateSerial, expiresAt, name);
+    return this.findByName(name);
+  },
 };
 
 /* --------------------------- audit logs -------------------------- */

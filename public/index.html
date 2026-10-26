@@ -134,6 +134,36 @@
     </div>
   </div>
 
+  <!-- Renew/Extend modal -->
+  <div class="modal-backdrop" id="renew-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="renew-title">
+      <h3 id="renew-title">تمدید تاریخ انقضا</h3>
+      <form id="renew-form" autocomplete="off">
+        <input type="hidden" id="renew-client-name" />
+        <p class="modal-intro">تمدید اعتبار گواهی برای کاربر: <strong id="renew-client-label" class="mono"></strong></p>
+        <p id="renew-current-expiry" class="hint-text"></p>
+        <label for="renew-days-select">مدت زمان تمدید</label>
+        <select id="renew-days-select">
+          <option value="30">۳۰ روز (۱ ماه)</option>
+          <option value="90">۹۰ روز (۳ ماه)</option>
+          <option value="180">۱۸۰ روز (۶ ماه)</option>
+          <option value="365" selected>۳۶۵ روز (۱ سال)</option>
+          <option value="825">۸۲۵ روز (~۲ سال و ۳ ماه)</option>
+          <option value="custom">سایر (تعداد روز دستی)...</option>
+        </select>
+        <div id="renew-custom-group" style="display:none; margin-top:.5rem;">
+          <label for="renew-custom-days">تعداد روز دستی (۱ تا ۳۶۵۰ روز)</label>
+          <input id="renew-custom-days" type="number" min="1" max="3650" placeholder="مثلاً 60" />
+        </div>
+        <div id="renew-error" class="error" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" data-close>انصراف</button>
+          <button type="submit" class="btn-primary" id="renew-submit">تمدید اعتبار</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="toast" class="toast" hidden></div>
 
   <script src="/js/app.js"></script>

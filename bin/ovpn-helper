@@ -161,6 +161,29 @@ case "$cmd" in
     fi
     ;;
 
+  delete-client)
+    name="${1:-}"; valid_name "$name"
+    if [ -e "$PKI_DIR/issued/$name.crt" ]; then
+      run_easyrsa revoke "$name" || true
+      run_easyrsa gen-crl || true
+    fi
+    rm -f "$PKI_DIR/issued/$name.crt" \
+          "$PKI_DIR/private/$name.key" \
+          "$PKI_DIR/reqs/$name.req" \
+          "$CCD_DIR/$name"
+    echo "ok"
+    ;;
+
+  renew)
+    name="${1:-}"; valid_name "$name"
+    days="${2:-$CERT_DAYS}"
+    [[ "$days" =~ ^[0-9]+$ ]] || die "invalid days parameter"
+    [ -e "$PKI_DIR/issued/$name.crt" ] || die "no issued certificate found"
+    run_easyrsa "--days=$days" renew "$name"
+    [ -s "$PKI_DIR/issued/$name.crt" ] || die "renewed certificate missing"
+    echo "ok"
+    ;;
+
   *)
     die "unknown sub-command: ${cmd:-<none>}"
     ;;

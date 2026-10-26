@@ -207,3 +207,18 @@ export function validateStaticIp(raw, networkCidr = '10.8.0.0/24', options = {})
   return ip;
 }
 
+/**
+ * Validate duration in days for certificate renewal/extension.
+ * Defaults to defaultDays (e.g. 825) if omitted/null/undefined.
+ */
+export function validateDays(raw, defaultDays = 825) {
+  if (raw === undefined || raw === null || raw === '') {
+    return defaultDays;
+  }
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 3650) {
+    throw new ValidationError('Renewal duration must be an integer between 1 and 3650 days', 'INVALID_DAYS');
+  }
+  return n;
+}
+

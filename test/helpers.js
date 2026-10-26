@@ -94,6 +94,12 @@ case "$1" in
   set-ip) echo ok ;;
   delete-ip) echo ok ;;
   read-ip) echo "" ;;
+  delete-client)
+     rm -f "$PKI/issued/$2.crt" "$PKI/private/$2.key" "$PKI/reqs/$2.req"
+     echo ok ;;
+  renew)
+     printf "V\t350101000000Z\t\tDDDD4444\tunknown\t/CN=%s\n" "$2" >> "$PKI/index.txt"
+     echo ok ;;
   *) echo "unknown $1" >&2; exit 1 ;;
 esac
 `,

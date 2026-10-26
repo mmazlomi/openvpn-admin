@@ -11,6 +11,8 @@ import {
   setClientIp,
   revoke,
   archive,
+  deleteClient,
+  extendClient,
 } from '../services/clients.js';
 import { generateClientConfig } from '../services/client-config.js';
 import { clientIp } from '../middleware.js';
@@ -113,6 +115,45 @@ router.post('/:name/archive', async (req, res, next) => {
   try {
     const row = await archive(req.params.name, actor(req));
     res.json({ ok: true, client: { name: row.name, status: row.status, archivedAt: row.archived_at } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:name/renew', async (req, res, next) => {
+  try {
+    const { days } = req.body || {};
+    const row = await extendClient(req.params.name, days, actor(req));
+    res.json({
+      ok: true,
+      client: {
+        name: row.name,
+        status: row.status,
+        certificateSerial: row.certificate_serial,
+        createdAt: row.created_at,
+        expiresAt: row.expires_at,
+        staticIp: row.static_ip,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:name', async (req, res, next) => {
+  try {
+    const result = await deleteClient(req.params.name, actor(req));
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Alias for clients that do not support DELETE methods easily
+router.post('/:name/delete', async (req, res, next) => {
+  try {
+    const result = await deleteClient(req.params.name, actor(req));
+    res.json(result);
   } catch (err) {
     next(err);
   }

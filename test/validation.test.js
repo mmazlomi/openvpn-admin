@@ -6,6 +6,7 @@ import {
   validatePassword,
   validateStaticIp,
   parseCidr,
+  validateDays,
 } from '../src/utils/validation.js';
 
 test('valid client names', () => {
@@ -82,4 +83,19 @@ test('rejects invalid or reserved static IPs', () => {
   assert.throws(() => validateStaticIp('10.8.0.51', '10.8.0.0/24'));
   assert.throws(() => validateStaticIp('10.8.0.100', '10.8.0.0/24'));
   assert.throws(() => validateStaticIp('10.8.0.254', '10.8.0.0/24'));
+});
+
+test('validateDays policy', () => {
+  assert.equal(validateDays(30), 30);
+  assert.equal(validateDays('365'), 365);
+  assert.equal(validateDays(825), 825);
+  assert.equal(validateDays(undefined, 825), 825);
+  assert.equal(validateDays(null, 825), 825);
+  assert.equal(validateDays('', 825), 825);
+
+  assert.throws(() => validateDays(0));
+  assert.throws(() => validateDays(-5));
+  assert.throws(() => validateDays(3651));
+  assert.throws(() => validateDays('abc'));
+  assert.throws(() => validateDays(12.5));
 });

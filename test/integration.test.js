@@ -239,4 +239,38 @@ test('static IP assignment and duplicate checking', async () => {
   });
   assert.equal(assignFreed.status, 200);
   assert.equal(assignFreed.json.client.staticIp, '10.8.0.50');
+
+  // 11. Extend expiration on static-user2
+  const renewRes = await request(server, 'POST', '/api/clients/static-user2/renew', {
+    cookie,
+    headers: H,
+    body: { days: 365 },
+  });
+  assert.equal(renewRes.status, 200);
+  assert.ok(renewRes.json.client.expiresAt);
+
+  // 12. Cannot renew a revoked client
+  const renewRevoked = await request(server, 'POST', '/api/clients/static-user1/renew', {
+    cookie,
+    headers: H,
+    body: { days: 365 },
+  });
+  assert.equal(renewRevoked.status, 409);
+
+  // 13. Delete client static-user1 (revoked) and static-user2 (active)
+  const del1 = await request(server, 'DELETE', '/api/clients/static-user1', {
+    cookie,
+    headers: H,
+  });
+  assert.equal(del1.status, 200);
+
+  const del2 = await request(server, 'DELETE', '/api/clients/static-user2', {
+    cookie,
+    headers: H,
+  });
+  assert.equal(del2.status, 200);
+
+  // 14. Verify they no longer exist
+  const getDel = await request(server, 'GET', '/api/clients/static-user2', { cookie });
+  assert.equal(getDel.status, 404);
 });

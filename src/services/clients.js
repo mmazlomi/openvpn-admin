@@ -6,9 +6,9 @@ import config from '../config.js';
 import { clients as clientsDb, audit } from '../database.js';
 import { buildClient, revokeClient, readIndex } from './easyrsa.js';
 import { helper } from './helper.js';
-import { getStatus } from './openvpn.js';
-import { validateClientName, validateNotes, validateStaticIp, parseCidr } from '../utils/validation.js';
-import { ConflictError, NotFoundError } from '../utils/errors.js';
+import { getStatus, killClient } from './openvpn.js';
+import { validateClientName, validateNotes, validateStaticIp, parseCidr, validateDays } from '../utils/validation.js';
+import { ConflictError, NotFoundError, PkiError } from '../utils/errors.js';
 import logger from '../utils/logger.js';
 
 /** List clients merged with live connection info. */
@@ -254,6 +254,85 @@ export async function archive(rawName, actor) {
   });
   logger.info('client archived', { client: name });
   return clientsDb.findByName(name);
+}
+
+/**
+ * Permanently delete a client: disconnect if online, revoke certificate,
+ * remove PKI files and CCD file, and remove from the database.
+ */
+export async function deleteClient(rawName, actor) {
+  const name = validateClientName(rawName);
+  const row = clientsDb.findByName(name);
+  if (!row) throw new NotFoundError('Client not found', 'CLIENT_NOT_FOUND');
+
+  // 1. Disconnect if online
+  try {
+    await killClient(name);
+  } catch (err) {
+    logger.debug('killClient failed on delete', { client: name, err: err.message });
+  }
+
+  // 2. Remove PKI artefacts and CCD file via helper
+  try {
+    await helper('delete-client', [name]);
+  } catch (err) {
+    logger.warn('delete-client helper warning', { client: name, err: err.message });
+  }
+
+  // 3. Remove from database
+  clientsDb.deleteByName(name);
+
+  // 4. Record audit log
+  audit.record({
+    adminId: actor?.id,
+    adminName: actor?.username,
+    action: 'DELETE_CLIENT',
+    clientName: name,
+    ip: actor?.ip,
+  });
+
+  logger.info('client deleted', { client: name });
+  return { name, ok: true };
+}
+
+/**
+ * Extend expiration date for an active or expired client account.
+ */
+export async function extendClient(rawName, rawDays, actor) {
+  const name = validateClientName(rawName);
+  const row = clientsDb.findByName(name);
+  if (!row) throw new NotFoundError('Client not found', 'CLIENT_NOT_FOUND');
+  if (row.status === 'revoked' || row.status === 'archived') {
+    throw new ConflictError('Cannot extend an archived or revoked client', 'CLIENT_NOT_ACTIVE');
+  }
+
+  const days = validateDays(rawDays, config.clientCertDays);
+
+  logger.info('extending client certificate expiry', { client: name, days });
+  await helper('renew', [name, String(days)]);
+
+  const entries = await readIndex();
+  const entry = entries.findLast((e) => e.name === name && e.status === 'active');
+  if (!entry) {
+    throw new PkiError('Certificate renewed but active entry not found in index', 'PKI_ENTRY_MISSING');
+  }
+
+  const updated = clientsDb.updateExpiry(name, {
+    certificateSerial: entry.serial,
+    expiresAt: entry.expiresAt,
+  });
+
+  audit.record({
+    adminId: actor?.id,
+    adminName: actor?.username,
+    action: 'EXTEND_EXPIRY',
+    clientName: name,
+    ip: actor?.ip,
+    detail: `days=${days} expires=${entry.expiresAt}`,
+  });
+
+  logger.info('client expiry extended', { client: name, expiresAt: entry.expiresAt });
+  return updated;
 }
 
 /**

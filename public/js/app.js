@@ -60,11 +60,16 @@ function wireEvents() {
   $('create-form').addEventListener('submit', doCreate);
   $('ip-form').addEventListener('submit', doSaveIp);
   $('ip-clear-btn').addEventListener('click', doClearIp);
+  $('renew-form').addEventListener('submit', doRenew);
+  $('renew-days-select').addEventListener('change', (e) => {
+    $('renew-custom-group').style.display = e.target.value === 'custom' ? 'block' : 'none';
+  });
   document.querySelectorAll('[data-close]').forEach((b) =>
     b.addEventListener('click', () => {
       $('create-modal').hidden = true;
       $('details-modal').hidden = true;
       $('ip-modal').hidden = true;
+      $('renew-modal').hidden = true;
     }));
   document.querySelectorAll('.modal-backdrop').forEach((bd) =>
     bd.addEventListener('click', (e) => { if (e.target === bd) bd.hidden = true; }));
@@ -107,7 +112,7 @@ async function loadClients() {
     for (const c of list) {
       const tr = document.createElement('tr');
       tr.appendChild(cell(nameCell(c)));
-      tr.appendChild(cell(statusPill(c.status)));
+      tr.appendChild(cell(statusPill(c)));
       tr.appendChild(cell(c.staticIp ? '<span class="mono">' + escapeHtml(c.staticIp) + '</span>' : '<span class="muted">پویا</span>'));
       tr.appendChild(cell(fmtDateShort(c.createdAt)));
       tr.appendChild(cell(c.status === 'revoked' ? '–' : fmtDateShort(c.expiresAt)));
@@ -129,8 +134,11 @@ function nameCell(c) {
   span.textContent = c.name;
   return span;
 }
-function statusPill(status) {
-  return '<span class="status-pill status-' + status + '">' + (STATUS_FA[status] || status) + '</span>';
+function statusPill(c) {
+  if (c.status === 'active' && c.expiresAt && new Date(c.expiresAt).getTime() < Date.now()) {
+    return '<span class="status-pill status-expired">منقضی شده</span>';
+  }
+  return '<span class="status-pill status-' + c.status + '">' + (STATUS_FA[c.status] || c.status) + '</span>';
 }
 function actionCell(c) {
   const td = document.createElement('td');
@@ -150,6 +158,13 @@ function actionCell(c) {
   td.appendChild(details);
 
   if (c.status === 'active') {
+    const renewBtn = document.createElement('button');
+    renewBtn.className = 'btn-link';
+    renewBtn.textContent = 'تمدید';
+    renewBtn.title = 'تمدید تاریخ انقضای گواهی';
+    renewBtn.addEventListener('click', () => openRenewModal(c));
+    td.appendChild(renewBtn);
+
     const ipBtn = document.createElement('button');
     ipBtn.className = 'btn-link';
     ipBtn.textContent = 'تنظیم IP';
@@ -169,6 +184,15 @@ function actionCell(c) {
     ar.addEventListener('click', () => doArchive(c.name));
     td.appendChild(ar);
   }
+
+  const del = document.createElement('button');
+  del.className = 'btn-link';
+  del.style.color = 'var(--danger)';
+  del.textContent = 'حذف';
+  del.title = 'حذف کامل حساب کاربر';
+  del.addEventListener('click', () => doDelete(c.name));
+  td.appendChild(del);
+
   return td;
 }
 
@@ -196,6 +220,15 @@ async function doArchive(name) {
   try {
     await api('/api/clients/' + encodeURIComponent(name) + '/archive', { method: 'POST', body: '{}' });
     toast('کاربر بایگانی شد', 'good');
+    await Promise.all([loadClients(), loadAudit()]);
+  } catch (err) { toast(err.message, 'bad'); }
+}
+
+async function doDelete(name) {
+  if (!confirm('آیا از حذف کامل حساب کاربر «' + name + '» اطمینان دارید؟\nاین عملیات برگشت‌پذیر نیست و کلیه فایل‌ها و دسترسی‌های کاربر حذف خواهند شد.')) return;
+  try {
+    await api('/api/clients/' + encodeURIComponent(name), { method: 'DELETE' });
+    toast('کاربر «' + name + '» به طور کامل حذف شد', 'good');
     await Promise.all([loadClients(), loadAudit()]);
   } catch (err) { toast(err.message, 'bad'); }
 }
@@ -323,6 +356,57 @@ async function doClearIp() {
   } catch (err) {
     $('ip-error').textContent = err.message;
     $('ip-error').hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ---------- renew modal ---------- */
+function openRenewModal(c) {
+  $('renew-client-name').value = c.name;
+  $('renew-client-label').textContent = c.name;
+  const isExp = c.expiresAt && new Date(c.expiresAt).getTime() < Date.now();
+  $('renew-current-expiry').textContent = c.expiresAt
+    ? 'تاریخ انقضای فعلی: ' + fmtDate(c.expiresAt) + (isExp ? ' (منقضی شده)' : '')
+    : 'تاریخ انقضا مشخص نیست';
+  $('renew-days-select').value = '365';
+  $('renew-custom-group').style.display = 'none';
+  $('renew-custom-days').value = '';
+  $('renew-error').hidden = true;
+  $('renew-submit').disabled = false;
+  $('renew-modal').hidden = false;
+}
+
+async function doRenew(e) {
+  e.preventDefault();
+  const name = $('renew-client-name').value;
+  const sel = $('renew-days-select').value;
+  let days;
+  if (sel === 'custom') {
+    days = parseInt($('renew-custom-days').value, 10);
+    if (!days || days < 1 || days > 3650) {
+      $('renew-error').textContent = 'لطفاً تعداد روز معتبر بین ۱ تا ۳۶۵۰ وارد کنید.';
+      $('renew-error').hidden = false;
+      return;
+    }
+  } else {
+    days = parseInt(sel, 10);
+  }
+
+  const btn = $('renew-submit');
+  btn.disabled = true;
+  $('renew-error').hidden = true;
+  try {
+    const res = await api('/api/clients/' + encodeURIComponent(name) + '/renew', {
+      method: 'POST',
+      body: JSON.stringify({ days }),
+    });
+    $('renew-modal').hidden = true;
+    toast('اعتبار کاربر «' + name + '» تا تاریخ ' + fmtDateShort(res.client.expiresAt) + ' تمدید شد', 'good');
+    await Promise.all([loadClients(), loadAudit()]);
+  } catch (err) {
+    $('renew-error').textContent = err.message;
+    $('renew-error').hidden = false;
   } finally {
     btn.disabled = false;
   }
