@@ -74,6 +74,9 @@ export async function listClients() {
         expiresAt: r.expires_at,
         lastSeen: live ? (lastRequest || new Date().toISOString()) : r.last_seen,
         lastRequest,
+        lastUrl: r.last_url || null,
+        lastUrlTime: r.last_url_time || null,
+        lastUrlType: r.last_url_type || null,
         notes: r.notes,
         staticIp: r.static_ip || null,
         online: !!live,
@@ -105,7 +108,11 @@ export async function getClient(rawName) {
   const row = clientsDb.findByName(name);
   if (!row) throw new NotFoundError('Client not found', 'CLIENT_NOT_FOUND');
   const { clients: list } = await listClients();
-  return list.find((c) => c.name === name);
+  const client = list.find((c) => c.name === name);
+  if (client) {
+    client.recentUrls = connectionsDb.getClientUrls(name, 20);
+  }
+  return client;
 }
 
 export async function createClient(rawName, rawNotes, rawStaticIpOrActor, maybeActor) {

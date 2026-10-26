@@ -20,6 +20,8 @@ TimeoutStopSec=15
 
 # --- hardening ---
 NoNewPrivileges=false
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
 # NOTE: NoNewPrivileges must stay false because the panel escalates through
 # a single locked-down sudoers rule (see /etc/sudoers.d/openvpn-admin).
 ProtectSystem=strict
@@ -44,7 +46,7 @@ RemoveIPC=true
 # `easyrsa build-client-full` / `revoke` to work.
 ReadWritePaths=/var/lib/openvpn-admin /etc/openvpn/easy-rsa /etc/openvpn/ccd
 ReadOnlyPaths=/etc/openvpn-admin.env /etc/openvpn-admin /etc/openvpn/server
-RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_PACKET
 SystemCallFilter=@system-service
 SystemCallErrorNumber=EPERM
 UMask=0077

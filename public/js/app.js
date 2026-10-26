@@ -261,12 +261,14 @@ function renderClients() {
       const staticIp = (c.staticIp || '').toLowerCase();
       const connectedIp = (c.connectedIp || '').toLowerCase();
       const lastReal = (c.lastRealIp || c.lastRealAddress || '').toLowerCase();
+      const lastUrl = (c.lastUrl || '').toLowerCase();
       const notes = (c.notes || '').toLowerCase();
       return (
         name.includes(searchQuery) ||
         staticIp.includes(searchQuery) ||
         connectedIp.includes(searchQuery) ||
         lastReal.includes(searchQuery) ||
+        lastUrl.includes(searchQuery) ||
         notes.includes(searchQuery)
       );
     });
@@ -280,7 +282,7 @@ function renderClients() {
     const emptyMsg = searchQuery ? t('emptySearch') : t('emptyTable');
     body.innerHTML = `
       <tr>
-        <td colspan="10" class="muted center">
+        <td colspan="11" class="muted center">
           <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <circle cx="12" cy="12" r="10"/>
@@ -304,6 +306,7 @@ function renderClients() {
     addCell(tr, 'colLastRealIp', lastRealIpCell(c));
     addCell(tr, 'colTraffic', trafficCell(c));
     addCell(tr, 'colLastRequest', lastRequestCell(c));
+    addCell(tr, 'colLastUrl', lastUrlCell(c));
     addCell(tr, 'colCreated', fmtDateShort(c.createdAt));
     addCell(tr, 'colExpires', c.status === 'revoked' ? '–' : fmtDateShort(c.expiresAt));
     tr.appendChild(actionCell(c));
@@ -391,6 +394,19 @@ function lastRequestCell(c) {
     return `<span class="chip chip-real" title="${escapeHtml(fmtDate(reqTime))}">${escapeHtml(formatTimeAgo(reqTime))}</span>`;
   }
   return '<span class="dim">–</span>';
+}
+
+function lastUrlCell(c) {
+  if (!c.lastUrl) return '<span class="dim">–</span>';
+  const url = c.lastUrl;
+  const isHttps = url.startsWith('https://');
+  const chipClass = isHttps ? 'chip-https' : 'chip-http';
+  const icon = isHttps
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg>';
+  const clean = url.replace(/^https?:\/\//i, '');
+  const title = `${escapeHtml(url)}${c.lastUrlTime ? ' (' + formatTimeAgo(c.lastUrlTime) + ')' : ''}`;
+  return `<span class="chip-url ${chipClass}" title="${title}">${icon}<span class="url-text">${escapeHtml(clean)}</span></span>`;
 }
 
 function lastSeenCell(c) {
@@ -694,6 +710,7 @@ async function showDetails(name) {
         formatBytes(c.totalBytes) + ' (' + t('trafficDownload') + ': ' + formatBytes(c.bytesSent) + ' / ' + t('trafficUpload') + ': ' + formatBytes(c.bytesReceived) + ')',
       ],
       [t('colLastRequest'), c.lastRequest ? fmtDate(c.lastRequest) + ' (' + formatTimeAgo(c.lastRequest) + ')' : '–'],
+      [t('colLastUrl'), c.lastUrl ? c.lastUrl + (c.lastUrlTime ? ' (' + formatTimeAgo(c.lastUrlTime) + ')' : '') : '–'],
       [t('historyCardSessions'), c.connectionCount ? String(c.connectionCount) : '–'],
       ['Certificate Serial', c.certificateSerial || '–'],
       [t('colCreated'), fmtDate(c.createdAt)],
@@ -724,8 +741,49 @@ async function showHistory(name) {
   $('history-last-real-ip').textContent = '–';
   $('history-real-port').textContent = '–';
   $('history-session-count').textContent = '–';
+  $('history-last-url').textContent = '–';
+  $('history-last-url-time').textContent = '–';
   $('history-body').innerHTML = `<tr><td colspan="6" class="muted center">${escapeHtml(t('loading'))}</td></tr>`;
   $('history-modal').hidden = false;
+
+  // Find cached client to display last URL immediately
+  const clientObj = cachedClients.find((c) => c.name === name);
+  if (clientObj?.lastUrl) {
+    const isHttps = clientObj.lastUrl.startsWith('https://');
+    $('history-last-url').innerHTML = `
+      <span class="chip-url ${isHttps ? 'chip-https' : 'chip-http'}" style="max-width:100%;">
+        ${isHttps ? '🔒' : '🌐'} <span class="url-text">${escapeHtml(clientObj.lastUrl.replace(/^https?:\/\//i, ''))}</span>
+      </span>
+    `;
+    $('history-last-url-time').textContent = clientObj.lastUrlTime ? formatTimeAgo(clientObj.lastUrlTime) : '–';
+  }
+
+  // Setup tabs
+  const tabConns = $('history-tab-conns');
+  const tabUrls = $('history-tab-urls');
+  const panelConns = $('history-conns-panel');
+  const panelUrls = $('history-urls-panel');
+
+  if (tabConns && tabUrls && panelConns && panelUrls) {
+    tabConns.onclick = () => {
+      tabConns.classList.add('active');
+      tabUrls.classList.remove('active');
+      panelConns.style.display = 'block';
+      panelUrls.style.display = 'none';
+    };
+    tabUrls.onclick = () => {
+      tabUrls.classList.add('active');
+      tabConns.classList.remove('active');
+      panelUrls.style.display = 'block';
+      panelConns.style.display = 'none';
+      loadClientUrls(name);
+    };
+    // Default to connections tab
+    tabConns.classList.add('active');
+    tabUrls.classList.remove('active');
+    panelConns.style.display = 'block';
+    panelUrls.style.display = 'none';
+  }
 
   try {
     const data = await api('/api/clients/' + encodeURIComponent(name) + '/connections?limit=50');
@@ -770,6 +828,44 @@ async function showHistory(name) {
       .join('');
   } catch (err) {
     $('history-body').innerHTML = `<tr><td colspan="6" class="error center">${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+async function loadClientUrls(name) {
+  const body = $('history-urls-body');
+  if (!body) return;
+  body.innerHTML = `<tr><td colspan="3" class="muted center">${escapeHtml(t('loading'))}</td></tr>`;
+  try {
+    const data = await api('/api/clients/' + encodeURIComponent(name) + '/urls?limit=50');
+    const urls = data.urls || [];
+    if (!urls.length) {
+      body.innerHTML = `<tr><td colspan="3" class="muted center">${escapeHtml(t('historyNoUrls'))}</td></tr>`;
+      return;
+    }
+    body.innerHTML = urls
+      .map((u) => {
+        const isHttps = u.url.startsWith('https://');
+        const icon = isHttps
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:middle;margin-inline-end:4px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;vertical-align:middle;margin-inline-end:4px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+        const typeBadge = isHttps
+          ? `<span class="chip chip-https" style="font-size:0.72rem;padding:0.12rem 0.45rem;">HTTPS</span>`
+          : `<span class="chip chip-http" style="font-size:0.72rem;padding:0.12rem 0.45rem;">HTTP</span>`;
+        return `
+          <tr>
+            <td class="mono font-bold">
+              <a href="${escapeHtml(u.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:none;" title="${escapeHtml(u.url)}">
+                ${icon}${escapeHtml(u.url)}
+              </a>
+            </td>
+            <td>${typeBadge}</td>
+            <td class="mono" style="font-size:0.8rem;">${fmtDate(u.visitedAt)} <span class="hint-text" style="display:inline;margin:0;">(${escapeHtml(formatTimeAgo(u.visitedAt))})</span></td>
+          </tr>
+        `;
+      })
+      .join('');
+  } catch (err) {
+    body.innerHTML = `<tr><td colspan="3" class="error center">${escapeHtml(err.message)}</td></tr>`;
   }
 }
 

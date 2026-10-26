@@ -80,10 +80,19 @@ function migrate(d) {
       status          TEXT NOT NULL DEFAULT 'connected'
     );
 
+    CREATE TABLE IF NOT EXISTS client_urls (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_name TEXT NOT NULL,
+      url         TEXT NOT NULL,
+      url_type    TEXT NOT NULL,
+      visited_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires_at);
     CREATE INDEX IF NOT EXISTS idx_conn_client ON connection_history (client_name, id DESC);
     CREATE INDEX IF NOT EXISTS idx_conn_id ON connection_history (id DESC);
+    CREATE INDEX IF NOT EXISTS idx_client_urls ON client_urls (client_name, id DESC);
   `);
 
   const cols = d.pragma('table_info(clients)');
@@ -92,6 +101,15 @@ function migrate(d) {
   }
   if (!cols.some((c) => c.name === 'paused')) {
     d.exec('ALTER TABLE clients ADD COLUMN paused INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!cols.some((c) => c.name === 'last_url')) {
+    d.exec('ALTER TABLE clients ADD COLUMN last_url TEXT');
+  }
+  if (!cols.some((c) => c.name === 'last_url_time')) {
+    d.exec('ALTER TABLE clients ADD COLUMN last_url_time TEXT');
+  }
+  if (!cols.some((c) => c.name === 'last_url_type')) {
+    d.exec('ALTER TABLE clients ADD COLUMN last_url_type TEXT');
   }
   d.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_static_ip ON clients (static_ip) WHERE static_ip IS NOT NULL');
 }
@@ -186,7 +204,10 @@ export const clients = {
     getDb().prepare('UPDATE clients SET last_seen = ? WHERE name = ?').run(isoTs, name);
   },
   deleteByName(name) {
-    getDb().prepare('DELETE FROM clients WHERE name = ?').run(name);
+    const d = getDb();
+    d.prepare('DELETE FROM client_urls WHERE client_name = ?').run(name);
+    d.prepare('DELETE FROM connection_history WHERE client_name = ?').run(name);
+    d.prepare('DELETE FROM clients WHERE name = ?').run(name);
   },
   updateExpiry(name, { certificateSerial, expiresAt }) {
     getDb()
@@ -370,6 +391,43 @@ export const connections = {
       lastRealAddress: addr,
       lastRealIp,
     };
+  },
+
+  recordClientUrl(clientName, url, urlType, isoTs = new Date().toISOString()) {
+    const d = getDb();
+    d.prepare(
+      `UPDATE clients
+          SET last_url = ?, last_url_time = ?, last_url_type = ?
+        WHERE name = ?`,
+    ).run(url, isoTs, urlType, clientName);
+
+    d.prepare(
+      `INSERT INTO client_urls (client_name, url, url_type, visited_at)
+       VALUES (?, ?, ?, ?)`,
+    ).run(clientName, url, urlType, isoTs);
+
+    d.prepare(
+      `DELETE FROM client_urls
+        WHERE client_name = ?
+          AND id NOT IN (
+            SELECT id FROM client_urls
+            WHERE client_name = ?
+            ORDER BY id DESC
+            LIMIT 50
+          )`,
+    ).run(clientName, clientName);
+  },
+
+  getClientUrls(clientName, limit = 50) {
+    return getDb()
+      .prepare(
+        `SELECT id, client_name AS clientName, url, url_type AS urlType, visited_at AS visitedAt
+           FROM client_urls
+          WHERE client_name = ?
+          ORDER BY id DESC
+          LIMIT ?`,
+      )
+      .all(clientName, Math.min(Math.max(limit, 1), 100));
   },
 };
 

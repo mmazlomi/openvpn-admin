@@ -672,6 +672,46 @@ tbody tr:last-child td {
   font-family: var(--font-sans);
 }
 
+/* URL Chips */
+.chip-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: var(--radius-sm);
+  max-width: 240px;
+  text-decoration: none;
+  cursor: default;
+  vertical-align: middle;
+}
+.chip-url svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.chip-url .url-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip-https {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+.chip-http {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+}
+.chip-dns {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #8b5cf6;
+}
+
 /* Traffic Box */
 .traffic-cell {
   display: flex;

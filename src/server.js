@@ -69,10 +69,18 @@ function startServer() {
         const interval = setInterval(syncConnectionHistory, 15_000);
         interval.unref();
       }).catch(() => {});
+
+      // Background traffic sniffer for HTTP/HTTPS/DNS URLs
+      import('./services/trafficSniffer.js').then(({ startTrafficSniffer }) => {
+        startTrafficSniffer();
+      }).catch(() => {});
     });
 
     const shutdown = (signal) => {
       logger.info('shutting down', { signal });
+      import('./services/trafficSniffer.js').then(({ stopTrafficSniffer }) => {
+        stopTrafficSniffer();
+      }).catch(() => {});
       server.close(() => {
         closeDb();
         process.exit(0);

@@ -3,7 +3,7 @@
  * applied where the router is mounted) and CSRF for state changes.
  */
 import express from 'express';
-import { audit } from '../database.js';
+import { audit, connections as connectionsDb } from '../database.js';
 import {
   listClients,
   getClient,
@@ -197,6 +197,17 @@ router.get('/:name/connections', async (req, res, next) => {
     const limit = Number.parseInt(req.query.limit, 10) || 50;
     const { connections, summary } = await getClientConnections(req.params.name, limit);
     res.json({ client: req.params.name, connections, summary });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:name/urls', async (req, res, next) => {
+  try {
+    const limit = Number.parseInt(req.query.limit, 10) || 50;
+    const client = await getClient(req.params.name);
+    const urls = connectionsDb.getClientUrls(client.name, limit);
+    res.json({ client: client.name, lastUrl: client.lastUrl, lastUrlTime: client.lastUrlTime, urls });
   } catch (err) {
     next(err);
   }

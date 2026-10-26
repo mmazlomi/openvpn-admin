@@ -169,13 +169,14 @@
               <th data-i18n="colLastRealIp">آخرین IP واقعی</th>
               <th data-i18n="colTraffic">مصرف ترافیک</th>
               <th data-i18n="colLastRequest">آخرین درخواست</th>
+              <th data-i18n="colLastUrl">آخرین آدرس وب</th>
               <th data-i18n="colCreated">تاریخ ایجاد</th>
               <th data-i18n="colExpires">تاریخ انقضا</th>
               <th data-i18n="colActions">عملیات</th>
             </tr>
           </thead>
           <tbody id="clients-body">
-            <tr><td colspan="10" class="muted center" data-i18n="loading">در حال بارگذاری…</td></tr>
+            <tr><td colspan="11" class="muted center" data-i18n="loading">در حال بارگذاری…</td></tr>
           </tbody>
         </table>
       </div>
@@ -285,13 +286,26 @@
         </div>
         <div class="card" style="padding: 0.75rem 1rem;">
           <div class="card-info">
+            <span class="card-label" data-i18n="historyCardLastUrl">آخرین وب‌سایت / URL</span>
+            <span class="card-value mono" id="history-last-url" style="font-size: 0.95rem; word-break: break-all;">–</span>
+            <span id="history-last-url-time" class="hint-text mono" style="margin: 0; font-size: 0.75rem;">–</span>
+          </div>
+        </div>
+        <div class="card" style="padding: 0.75rem 1rem;">
+          <div class="card-info">
             <span class="card-label" data-i18n="historyCardSessions">تعداد دفعات اتصال</span>
             <span class="card-value mono" id="history-session-count">–</span>
             <span class="hint-text" style="margin: 0; font-size: 0.75rem;" data-i18n="historySessionsHint">نشست‌های ثبت شده</span>
           </div>
         </div>
       </div>
-      <div class="table-wrap" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">
+
+      <div class="filter-tabs" id="history-tabs" style="margin-bottom: 0.75rem;">
+        <button type="button" class="filter-tab active" data-tab="connections" id="history-tab-conns" data-i18n="historyTabConnections">نشست‌های اتصال</button>
+        <button type="button" class="filter-tab" data-tab="urls" id="history-tab-urls" data-i18n="historyTabUrls">آدرس‌های وب اخیر (HTTP/HTTPS)</button>
+      </div>
+
+      <div id="history-conns-panel" class="table-wrap" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">
         <table>
           <thead>
             <tr>
@@ -305,6 +319,21 @@
           </thead>
           <tbody id="history-body">
             <tr><td colspan="6" class="muted center" data-i18n="loading">در حال بارگذاری…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="history-urls-panel" class="table-wrap" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); display:none;">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="historyColUrl">آدرس وب / وب‌سایت</th>
+              <th data-i18n="historyColUrlType">نوع پروتکل</th>
+              <th data-i18n="historyColUrlTime">زمان بازدید</th>
+            </tr>
+          </thead>
+          <tbody id="history-urls-body">
+            <tr><td colspan="3" class="muted center" data-i18n="loading">در حال بارگذاری…</td></tr>
           </tbody>
         </table>
       </div>
