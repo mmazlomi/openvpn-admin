@@ -43,6 +43,7 @@ export async function listClients() {
         notes: r.notes,
         staticIp: r.static_ip || null,
         online: !!live,
+        connectedIp: live ? live.virtualAddress : null,
         connection: live
           ? {
               realAddress: live.realAddress,

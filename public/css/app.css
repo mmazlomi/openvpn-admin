@@ -178,6 +178,9 @@ code, .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monosp
 .status-revoked { background: #fee2e2; color: #991b1b; }
 .status-archived { background: #e2e8f0; color: #475569; }
 .dot-online { color: var(--success); font-weight: 700; }
+.ip-connected { color: var(--success); font-weight: 600; display: inline-flex; align-items: center; gap: .3rem; }
+.dot-green { color: var(--success); font-size: .8rem; line-height: 1; }
+.ip-assigned { font-weight: 600; }
 
 /* ---------- modal ---------- */
 .modal-backdrop {

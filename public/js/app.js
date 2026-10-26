@@ -105,7 +105,7 @@ async function loadClients() {
     $('stat-revoked').textContent = list.filter((c) => c.status === 'revoked').length;
 
     if (!list.length) {
-      body.innerHTML = '<tr><td colspan="7" class="muted center">هنوز کاربری وجود ندارد</td></tr>';
+      body.innerHTML = '<tr><td colspan="8" class="muted center">هنوز کاربری وجود ندارد</td></tr>';
       return;
     }
     body.innerHTML = '';
@@ -113,7 +113,8 @@ async function loadClients() {
       const tr = document.createElement('tr');
       tr.appendChild(cell(nameCell(c)));
       tr.appendChild(cell(statusPill(c)));
-      tr.appendChild(cell(c.staticIp ? '<span class="mono">' + escapeHtml(c.staticIp) + '</span>' : '<span class="muted">پویا</span>'));
+      tr.appendChild(cell(assignedIpCell(c)));
+      tr.appendChild(cell(connectedIpCell(c)));
       tr.appendChild(cell(fmtDateShort(c.createdAt)));
       tr.appendChild(cell(c.status === 'revoked' ? '–' : fmtDateShort(c.expiresAt)));
       tr.appendChild(cell(c.online ? '<span class="dot-online">آنلاین</span>' : fmtDateShort(c.lastSeen)));
@@ -133,6 +134,21 @@ function nameCell(c) {
   span.className = 'mono';
   span.textContent = c.name;
   return span;
+}
+function assignedIpCell(c) {
+  if (c.staticIp) {
+    return '<span class="mono ip-assigned">' + escapeHtml(c.staticIp) + '</span>';
+  }
+  return '<span class="muted">پویا (خودکار)</span>';
+}
+function connectedIpCell(c) {
+  if (c.online && (c.connectedIp || c.connection?.virtualAddress)) {
+    const ip = c.connectedIp || c.connection.virtualAddress;
+    const real = c.connection?.realAddress ? escapeHtml(c.connection.realAddress) : '';
+    return '<span class="mono ip-connected" title="' + (real ? 'آدرس اینترنتی: ' + real : '') + '">' +
+           '<span class="dot-green">●</span> ' + escapeHtml(ip) + '</span>';
+  }
+  return '<span class="muted">–</span>';
 }
 function statusPill(c) {
   if (c.status === 'active' && c.expiresAt && new Date(c.expiresAt).getTime() < Date.now()) {
@@ -239,7 +255,10 @@ async function showDetails(name) {
     const rows = [
       ['نام', c.name],
       ['وضعیت', STATUS_FA[c.status] || c.status],
-      ['IP اختصاصی', c.staticIp ? c.staticIp : 'پویا (Dynamic)'],
+      ['IP تخصیص‌یافته', c.staticIp ? c.staticIp : 'پویا (خودکار)'],
+      ['IP متصل فعلی (VPN)', c.online && (c.connectedIp || c.connection?.virtualAddress)
+        ? (c.connectedIp || c.connection.virtualAddress) + ' (آنلاین)'
+        : 'متصل نیست (آفلاین)'],
       ['سریال گواهی', c.certificateSerial || '–'],
       ['ایجاد', fmtDate(c.createdAt)],
       ['انقضا', fmtDate(c.expiresAt)],
@@ -248,8 +267,7 @@ async function showDetails(name) {
       ['آخرین اتصال', c.online ? 'هم‌اکنون آنلاین' : fmtDate(c.lastSeen)],
     ];
     if (c.connection) {
-      rows.push(['آدرس مجازی', c.connection.virtualAddress]);
-      rows.push(['آدرس واقعی', c.connection.realAddress]);
+      rows.push(['آدرس اینترنتی (Real IP)', c.connection.realAddress]);
       rows.push(['دریافت/ارسال', (c.connection.bytesReceived + ' / ' + c.connection.bytesSent) + ' بایت']);
     }
     if (c.notes) rows.push(['یادداشت', c.notes]);
