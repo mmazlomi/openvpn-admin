@@ -257,6 +257,34 @@ test('static IP assignment and duplicate checking', async () => {
   });
   assert.equal(renewRevoked.status, 409);
 
+  // 12b. Pause and resume static-user2
+  const pauseRes = await request(server, 'POST', '/api/clients/static-user2/pause', {
+    cookie,
+    headers: H,
+    body: '{}',
+  });
+  assert.equal(pauseRes.status, 200);
+  assert.equal(pauseRes.json.client.status, 'paused');
+  assert.equal(pauseRes.json.client.paused, true);
+
+  // Cannot pause revoked client
+  const pauseRevoked = await request(server, 'POST', '/api/clients/static-user1/pause', {
+    cookie,
+    headers: H,
+    body: '{}',
+  });
+  assert.equal(pauseRevoked.status, 409);
+
+  // Resume static-user2
+  const resumeRes = await request(server, 'POST', '/api/clients/static-user2/resume', {
+    cookie,
+    headers: H,
+    body: '{}',
+  });
+  assert.equal(resumeRes.status, 200);
+  assert.equal(resumeRes.json.client.status, 'active');
+  assert.equal(resumeRes.json.client.paused, false);
+
   // 13. Delete client static-user1 (revoked) and static-user2 (active)
   const del1 = await request(server, 'DELETE', '/api/clients/static-user1', {
     cookie,

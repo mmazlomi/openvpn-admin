@@ -47,7 +47,8 @@ function migrate(d) {
       expires_at         TEXT,
       last_seen          TEXT,
       notes              TEXT,
-      static_ip          TEXT
+      static_ip          TEXT,
+      paused             INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS audit_logs (
@@ -74,6 +75,9 @@ function migrate(d) {
   const cols = d.pragma('table_info(clients)');
   if (!cols.some((c) => c.name === 'static_ip')) {
     d.exec('ALTER TABLE clients ADD COLUMN static_ip TEXT');
+  }
+  if (!cols.some((c) => c.name === 'paused')) {
+    d.exec('ALTER TABLE clients ADD COLUMN paused INTEGER NOT NULL DEFAULT 0');
   }
   d.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_static_ip ON clients (static_ip) WHERE static_ip IS NOT NULL');
 }
@@ -152,13 +156,17 @@ export const clients = {
   },
   markRevoked(name) {
     getDb()
-      .prepare("UPDATE clients SET status = 'revoked', revoked_at = datetime('now'), static_ip = NULL WHERE name = ?")
+      .prepare("UPDATE clients SET status = 'revoked', revoked_at = datetime('now'), static_ip = NULL, paused = 0 WHERE name = ?")
       .run(name);
   },
   markArchived(name) {
     getDb()
-      .prepare("UPDATE clients SET status = 'archived', archived_at = datetime('now'), static_ip = NULL WHERE name = ?")
+      .prepare("UPDATE clients SET status = 'archived', archived_at = datetime('now'), static_ip = NULL, paused = 0 WHERE name = ?")
       .run(name);
+  },
+  setPaused(name, paused) {
+    getDb().prepare('UPDATE clients SET paused = ? WHERE name = ?').run(paused ? 1 : 0, name);
+    return this.findByName(name);
   },
   setLastSeen(name, isoTs) {
     getDb().prepare('UPDATE clients SET last_seen = ? WHERE name = ?').run(isoTs, name);

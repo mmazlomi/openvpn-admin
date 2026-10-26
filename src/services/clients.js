@@ -33,7 +33,8 @@ export async function listClients() {
       }
       return {
         name: r.name,
-        status: r.status,
+        status: r.paused ? 'paused' : r.status,
+        paused: !!r.paused,
         certificateSerial: r.certificate_serial,
         createdAt: r.created_at,
         revokedAt: r.revoked_at,
@@ -334,6 +335,74 @@ export async function extendClient(rawName, rawDays, actor) {
 
   logger.info('client expiry extended', { client: name, expiresAt: entry.expiresAt });
   return updated;
+}
+
+/**
+ * Pause connection of an active user (disables access via CCD 'disable' directive
+ * and kills active session).
+ */
+export async function pauseClient(rawName, actor) {
+  const name = validateClientName(rawName);
+  const row = clientsDb.findByName(name);
+  if (!row) throw new NotFoundError('Client not found', 'CLIENT_NOT_FOUND');
+  if (row.status !== 'active') {
+    throw new ConflictError('Only active clients can be paused', 'CLIENT_NOT_ACTIVE');
+  }
+
+  // 1. Enable 'disable' directive in CCD file
+  await helper('pause-client', [name]);
+
+  // 2. Disconnect if currently online
+  try {
+    await killClient(name);
+  } catch (err) {
+    logger.debug('killClient failed on pause', { client: name, err: err.message });
+  }
+
+  // 3. Update database
+  clientsDb.setPaused(name, true);
+
+  // 4. Audit
+  audit.record({
+    adminId: actor?.id,
+    adminName: actor?.username,
+    action: 'PAUSE_CLIENT',
+    clientName: name,
+    ip: actor?.ip,
+  });
+
+  logger.info('client connection paused', { client: name });
+  return clientsDb.findByName(name);
+}
+
+/**
+ * Resume/activate connection of a paused user.
+ */
+export async function resumeClient(rawName, actor) {
+  const name = validateClientName(rawName);
+  const row = clientsDb.findByName(name);
+  if (!row) throw new NotFoundError('Client not found', 'CLIENT_NOT_FOUND');
+  if (row.status !== 'active') {
+    throw new ConflictError('Cannot activate an archived or revoked client', 'CLIENT_NOT_ACTIVE');
+  }
+
+  // 1. Remove 'disable' directive from CCD file
+  await helper('resume-client', [name]);
+
+  // 2. Update database
+  clientsDb.setPaused(name, false);
+
+  // 3. Audit
+  audit.record({
+    adminId: actor?.id,
+    adminName: actor?.username,
+    action: 'ACTIVATE_CLIENT',
+    clientName: name,
+    ip: actor?.ip,
+  });
+
+  logger.info('client connection activated/resumed', { client: name });
+  return clientsDb.findByName(name);
 }
 
 /**

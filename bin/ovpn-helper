@@ -143,14 +143,55 @@ case "$cmd" in
     ip="${2:-}"; valid_ip "$ip"
     netmask="${3:-255.255.255.0}"; valid_ip "$netmask"
     mkdir -p "$CCD_DIR"
+    was_disabled=0
+    if [ -f "$CCD_DIR/$name" ] && grep -q "^disable" "$CCD_DIR/$name"; then
+      was_disabled=1
+    fi
     printf "ifconfig-push %s %s\n" "$ip" "$netmask" > "$CCD_DIR/$name"
+    [ "$was_disabled" -eq 1 ] && printf "disable\n" >> "$CCD_DIR/$name"
     chmod 644 "$CCD_DIR/$name"
     echo "ok"
     ;;
 
   delete-ip)
     name="${1:-}"; valid_name "$name"
-    rm -f "$CCD_DIR/$name"
+    if [ -f "$CCD_DIR/$name" ]; then
+      if grep -q "^disable" "$CCD_DIR/$name"; then
+        printf "disable\n" > "$CCD_DIR/$name"
+        chmod 644 "$CCD_DIR/$name"
+      else
+        rm -f "$CCD_DIR/$name"
+      fi
+    fi
+    echo "ok"
+    ;;
+
+  pause-client)
+    name="${1:-}"; valid_name "$name"
+    mkdir -p "$CCD_DIR"
+    ccd_file="$CCD_DIR/$name"
+    if [ -f "$ccd_file" ]; then
+      if ! grep -q "^disable" "$ccd_file"; then
+        printf "\ndisable\n" >> "$ccd_file"
+      fi
+    else
+      printf "disable\n" > "$ccd_file"
+    fi
+    chmod 644 "$ccd_file"
+    echo "ok"
+    ;;
+
+  resume-client)
+    name="${1:-}"; valid_name "$name"
+    ccd_file="$CCD_DIR/$name"
+    if [ -f "$ccd_file" ]; then
+      sed -i '/^disable/d' "$ccd_file"
+      if ! grep -q '[^[:space:]]' "$ccd_file"; then
+        rm -f "$ccd_file"
+      else
+        chmod 644 "$ccd_file"
+      fi
+    fi
     echo "ok"
     ;;
 

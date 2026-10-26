@@ -13,6 +13,8 @@ import {
   archive,
   deleteClient,
   extendClient,
+  pauseClient,
+  resumeClient,
 } from '../services/clients.js';
 import { generateClientConfig } from '../services/client-config.js';
 import { clientIp } from '../middleware.js';
@@ -133,6 +135,55 @@ router.post('/:name/renew', async (req, res, next) => {
         createdAt: row.created_at,
         expiresAt: row.expires_at,
         staticIp: row.static_ip,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:name/pause', async (req, res, next) => {
+  try {
+    const row = await pauseClient(req.params.name, actor(req));
+    res.json({
+      ok: true,
+      client: {
+        name: row.name,
+        status: row.paused ? 'paused' : row.status,
+        paused: !!row.paused,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:name/resume', async (req, res, next) => {
+  try {
+    const row = await resumeClient(req.params.name, actor(req));
+    res.json({
+      ok: true,
+      client: {
+        name: row.name,
+        status: row.paused ? 'paused' : row.status,
+        paused: !!row.paused,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Alias for resume
+router.post('/:name/activate', async (req, res, next) => {
+  try {
+    const row = await resumeClient(req.params.name, actor(req));
+    res.json({
+      ok: true,
+      client: {
+        name: row.name,
+        status: row.paused ? 'paused' : row.status,
+        paused: !!row.paused,
       },
     });
   } catch (err) {

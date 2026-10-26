@@ -15,7 +15,7 @@ const fmtDateShort = (iso) => {
   if (Number.isNaN(d.getTime())) return '–';
   return d.toLocaleDateString('fa-IR');
 };
-const STATUS_FA = { active: 'فعال', revoked: 'لغو شده', archived: 'بایگانی' };
+const STATUS_FA = { active: 'فعال', paused: 'معلق (متوقف)', revoked: 'لغو شده', archived: 'بایگانی' };
 
 function toast(msg, kind) {
   const el = $('toast');
@@ -151,6 +151,9 @@ function connectedIpCell(c) {
   return '<span class="muted">–</span>';
 }
 function statusPill(c) {
+  if (c.status === 'paused' || c.paused) {
+    return '<span class="status-pill status-paused">معلق (متوقف)</span>';
+  }
   if (c.status === 'active' && c.expiresAt && new Date(c.expiresAt).getTime() < Date.now()) {
     return '<span class="status-pill status-expired">منقضی شده</span>';
   }
@@ -163,7 +166,7 @@ function actionCell(c) {
   const dl = document.createElement('button');
   dl.className = 'btn-link';
   dl.textContent = 'دانلود';
-  dl.disabled = c.status !== 'active';
+  dl.disabled = c.status !== 'active' && c.status !== 'paused' && !c.paused;
   dl.addEventListener('click', () => downloadConfig(c.name));
   td.appendChild(dl);
 
@@ -173,7 +176,26 @@ function actionCell(c) {
   details.addEventListener('click', () => showDetails(c.name));
   td.appendChild(details);
 
-  if (c.status === 'active') {
+  const isLiveActive = (c.status === 'active' || c.status === 'paused' || c.paused);
+  if (isLiveActive) {
+    if (c.paused || c.status === 'paused') {
+      const actBtn = document.createElement('button');
+      actBtn.className = 'btn-link';
+      actBtn.style.color = 'var(--success)';
+      actBtn.textContent = 'فعال‌سازی';
+      actBtn.title = 'فعال‌سازی و برقراری مجدد اتصال کاربر';
+      actBtn.addEventListener('click', () => doResume(c.name));
+      td.appendChild(actBtn);
+    } else {
+      const pauseBtn = document.createElement('button');
+      pauseBtn.className = 'btn-link';
+      pauseBtn.style.color = 'var(--warn)';
+      pauseBtn.textContent = 'توقف';
+      pauseBtn.title = 'توقف موقت اتصال کاربر';
+      pauseBtn.addEventListener('click', () => doPause(c.name));
+      td.appendChild(pauseBtn);
+    }
+
     const renewBtn = document.createElement('button');
     renewBtn.className = 'btn-link';
     renewBtn.textContent = 'تمدید';
@@ -236,6 +258,24 @@ async function doArchive(name) {
   try {
     await api('/api/clients/' + encodeURIComponent(name) + '/archive', { method: 'POST', body: '{}' });
     toast('کاربر بایگانی شد', 'good');
+    await Promise.all([loadClients(), loadAudit()]);
+  } catch (err) { toast(err.message, 'bad'); }
+}
+
+async function doPause(name) {
+  if (!confirm('آیا مطمئن هستید که می‌خواهید اتصال کاربر «' + name + '» را موقتاً متوقف کنید؟\nدر صورت اتصال، کاربر بلافاصله قطع خواهد شد و تا زمان فعال‌سازی مجدد امکان اتصال نخواهد داشت.')) return;
+  try {
+    await api('/api/clients/' + encodeURIComponent(name) + '/pause', { method: 'POST', body: '{}' });
+    toast('اتصال کاربر «' + name + '» موقتاً متوقف شد', 'good');
+    await Promise.all([loadClients(), loadAudit()]);
+  } catch (err) { toast(err.message, 'bad'); }
+}
+
+async function doResume(name) {
+  if (!confirm('اتصال کاربر «' + name + '» مجدداً فعال و برقرار شود؟')) return;
+  try {
+    await api('/api/clients/' + encodeURIComponent(name) + '/resume', { method: 'POST', body: '{}' });
+    toast('اتصال کاربر «' + name + '» مجدداً فعال شد', 'good');
     await Promise.all([loadClients(), loadAudit()]);
   } catch (err) { toast(err.message, 'bad'); }
 }

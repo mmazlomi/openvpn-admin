@@ -97,6 +97,8 @@ case "$1" in
   delete-client)
      rm -f "$PKI/issued/$2.crt" "$PKI/private/$2.key" "$PKI/reqs/$2.req"
      echo ok ;;
+  pause-client) echo ok ;;
+  resume-client) echo ok ;;
   renew)
      printf "V\t350101000000Z\t\tDDDD4444\tunknown\t/CN=%s\n" "$2" >> "$PKI/index.txt"
      echo ok ;;
